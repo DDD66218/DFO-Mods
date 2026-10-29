@@ -1,7 +1,3 @@
-<p align="center">
-  <a href="README.md"><img src="https://img.shields.io/badge/English-0078D4?style=for-the-badge&logo=read-the-docs&logoColor=white" alt="English"/></a>
-</p>
-
 # Mods de DFO Online
 
 Mods del lado del cliente para **DFO Online** (la versión de escritorio), más el cargador compartido en el que se ejecutan. Los **mods** son solo de interfaz de usuario (UI) durante la ejecución: leen los propios datos del juego, nunca escriben en un servidor y nunca modifican un personaje ni una partida guardada. Los **cargadores e instaladores no son solo de interfaz** — parchean la versión local del juego en el disco (una etiqueta de página, `boot.js`, el registro de mods, algunos scripts del juego) y reaplican todo después de una actualización. No se sube nada a la red.
