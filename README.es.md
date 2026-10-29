@@ -1,3 +1,5 @@
+[Español](README.es.md)
+
 # Mods de DFO Online
 
 Mods del lado del cliente para **DFO Online** (la versión de escritorio), más el cargador compartido en el que se ejecutan. Los **mods** son solo de interfaz de usuario (UI) durante la ejecución: leen los propios datos del juego, nunca escriben en un servidor y nunca modifican un personaje ni una partida guardada. Los **cargadores e instaladores no son solo de interfaz** — parchean la versión local del juego en el disco (una etiqueta de página, `boot.js`, el registro de mods, algunos scripts del juego) y reaplican todo después de una actualización. No se sube nada a la red.
@@ -8,7 +10,7 @@ El repositorio contiene tres componentes:
 - **`skillhud-mod/`** — el mod **Rastreador de Habilidades** (Skill Tracker): un panel HUD que muestra los usos de las habilidades rastreadas para el siguiente punto, configurable desde el menú ESC.
 - **`uitweaks-mod/`** — el mod **Ajustes de Interfaz** (UI Tweaks): etiquetas de nivel de objeto y colores de material en la placa del mundo (montones de botín), configurable desde el menú ESC.
 
-```
+```text
 README.md                 este archivo
 modloader/
   boot.js                 servido como assets/dfo-mods/boot.js
@@ -195,7 +197,9 @@ Luego registra el cargador y el mod en el marcador (`Game/.dfo-mods/installed.js
 
 Un panel HUD — una pieza nativa del sistema de diseño del HUD del juego — que rastrea las habilidades que eliges y muestra sus usos para el siguiente punto:
 
-    31/69  Golpe Crítico (Critical Strike)
+```text
+31/69  Golpe Crítico (Critical Strike)
+```
 
 Cuando se acumulan suficientes usos para que la siguiente comprobación de habilidad otorgue el punto, la columna de usos se ilumina (color latón, con un brillo suave) — es el momento de descansar o merodear y dejar pasar el tiempo del juego. En el límite propio de una habilidad, la columna de usos muestra **máx** y se atenúa: 100 para una habilidad no dominada, 200 bajo **Habilidades Maestras**. Lee los mismos datos del personaje que muestran las propias pantallas de habilidades del juego.
 
@@ -232,9 +236,11 @@ Para los personajes en línea, `L` no es el nivel del personaje (cambiado en 0.1
 
 Cada fila de objeto en la placa del mundo (el panel de mira sobre un montón de botín, un cadáver, un contenedor) lleva su grado de material, su palabra de material y su tipo:
 
-    T5 · Sable de Plata · Hoja Larga
-    T4 · Yelmo de Acero · Placas
-    T2 · Grebas · Malla
+```text
+T5 · Sable de Plata · Hoja Larga
+T4 · Yelmo de Acero · Placas
+T2 · Grebas · Malla
+```
 
 - **T\<n\>** es el nivel del objeto en el orden de materiales de Daggerfall por el que el propio juego clasifica: **Cuero 1, Malla 2, Hierro 3, Acero 4, Plata 5, Élfico 6, Enano 7, Mithril 8, Adamantita 9, Ébano 10, Orco 11, Daédrico 12**. La armadura empaqueta su clase en el byte alto y el grado de metal en el bajo (`Yelmo de Acero` = 513, `Yelmo Daédrico` = 521), por lo que el cuero y la malla son sus propios niveles y las placas toman el de su metal.
 - La palabra del material se añade solo cuando el nombre del juego ya no la lleva (el juego prefija Acero y superiores, no Hierro; una coraza de cuero ya dice Cuero).
@@ -286,8 +292,9 @@ Ambos parches del juego están anclados en la expresión exacta de la fila y la 
 - Si el panel de **Mods** está en blanco justo después de una actualización del juego, el juego se inició antes de que terminara la sincronización: el índice en memoria de la sesión en ejecución aún no nombraba `boot.js` y el registro, por lo que la página nunca cargó el cargador. La pestaña Mods aún puede aparecer porque su fragmento era un archivo existente. **Reinicia el juego una vez** y el panel, sus ajustes y el crédito/enlace se cargarán normalmente.
 - En el juego, ESC → Mods → **Recargar** registra el resultado del cargador en la consola de DevTools. Con DevTools abierto para un personaje activo, esto imprime los números detrás de una fila:
 
-      __dfoMods.active.get('skillhud').module.debugSkill(34)
-
+```text
+__dfoMods.active.get('skillhud').module.debugSkill(34)
+```
 ## Notas
 
 - Las copias de seguridad de los propios archivos de la versión residen en `Game/.dfo-mods/originals.json`, indexadas por versión. La desinstalación solo restaura la versión que se está desinstalando. La antigua carpeta `.skillhud-backup/` se migra en el primer uso.
