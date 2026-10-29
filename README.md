@@ -323,19 +323,16 @@ Every item row in the world plaque (the crosshair panel over a loot pile, a
 corpse, a container) carries its material grade, its material word and its
 type:
 
-    T3 · Silver Saber · Long Blade
-    T2 · Steel Helm · Plate
-    Greaves · Chain
+    T5 · Silver Saber · Long Blade
+    T4 · Steel Helm · Plate
+    T2 · Greaves · Chain
 
-- **T\<n\>** is the material tier. Two schemes (ESC → Mods → UI Tweaks):
-  **Metal grade** (default) numbers only the metals, Iron = 1 … Daedric = 10,
-  using the game's own `material` enum; **Full table** ranks the armor classes
-  in front of them — Leather 1, Chain 2, Iron 3, Steel 4, Silver 5, Elven 6,
-  Dwarven 7, Mithril 8, Adamantium 9, Ebony 10, Orcish 11, Daedric 12.
+- **T\<n\>** is the item's tier in the Daggerfall material order the game
+  itself ranks by: **Leather 1, Chain 2, Iron 3, Steel 4, Silver 5, Elven 6,
+  Dwarven 7, Mithril 8, Adamantium 9, Ebony 10, Orcish 11, Daedric 12**.
   Armor packs its class in the high byte and the metal grade in the low one
-  (`Steel Helm` = 513, `Daedric Helm` = 521), so only plate armor has a metal
-  grade; leather and chain show their class word (and get a tier of their own
-  only under the full table).
+  (`Steel Helm` = 513, `Daedric Helm` = 521), so leather and chain are their
+  own tiers and plate takes its metal's.
 - The material word is added only when the game's name does not already carry
   it (the game prefixes Steel and above, not Iron; a leather cuirass already
   says Leather).
@@ -348,7 +345,7 @@ type:
   name, because its material field is not a metal.
 
 Rows are coloured by material (a dot, plus the name in the material's colour).
-The **Full table** palette uses the classic Daggerfall colours:
+The **Classic** palette uses the Daggerfall colours:
 
 | tier | material | colour | hex |
 |---|---|---|---|
@@ -367,24 +364,25 @@ The **Full table** palette uses the classic Daggerfall colours:
 
 The dot always uses the exact hex. The name keeps the same colour too, except
 where that would be unreadable on the plaque's near-black ground (Iron,
-Mithril, Adamantium, Ebony get a lightened ink of the same hue).
+Mithril, Adamantium, Ebony get a lightened ink of the same hue). The **Bright**
+palette is the same twelve tiers in lighter, high-contrast colours.
 
 A row the game itself flags as magic/rare/legendary keeps the game's rarity dot,
 and the name still takes the material colour. Everything is text-first: the
 `T<n>` is there even when the colour is off.
 
-The plaque itself is widened to fit one item per line (the game caps it at
-300 px, which wraps a tier label + name + type; it now goes to 480 px, and a
-genuinely longer name ellipsises instead of spilling), and the list shows
-**10 rows** by default instead of the game's 6. **List rows** in the pane sets
-it anywhere from 3 to 30; the plaque grows downward from the crosshair, so keep
-it within the screen.
+The plaque itself is widened to fit one item per line and **no longer changes
+width as you scroll**: the game caps it at 300 px, which wraps a tier label +
+name + type, so list plaques get a fixed 480 px (`min(480px, 92vw)`) and each
+row stays on one line; a genuinely longer name ellipsises instead of spilling.
+The list shows **10 rows** by default instead of the game's 6; **List rows** in
+the pane sets 3–20. The plaque hangs below the crosshair and grows downward, so
+a tall list is lifted by just enough to keep its bottom clear of the hotbar/HUD
+band (never so far that its top leaves the screen).
 
 **ESC → Mods → UI Tweaks** has **Tier labels** (off restores the game's plain
-names), **Colour by material**, the **Colour scheme** choice and **List rows**.
-The Metal-grade scheme uses the game's own HUD tokens for its colours (bone,
-steel blue, brass, violet, red). Settings live in
-`localStorage['dfoUiTweaks.config.v1']`.
+names), **Colour by material**, the **Colour scheme** (Classic / Bright) and
+**List rows**. Settings live in `localStorage['dfoUiTweaks.config.v1']`.
 
 ### What it patches
 

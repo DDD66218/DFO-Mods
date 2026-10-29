@@ -7,8 +7,9 @@
  * touches game data: it reads the item object the game already hands over.
  *
  * Label:  T3 . Iron Saber . Long Blade
- *   T<n>   material tier: "metal" scheme = Iron 1 ... Daedric 10 (the vanilla
- *          grade); "full" scheme = Leather 1, Chain 2, Iron 3 ... Daedric 12
+ *   T<n>   the item's tier in the Daggerfall material order: Leather 1,
+ *          Chain 2, Iron 3, Steel 4, Silver 5, Elven 6, Dwarven 7,
+ *          Mithril 8, Adamantium 9, Ebony 10, Orcish 11, Daedric 12
  *   Iron   the item's material word (skipped when the game name has it)
  *   Saber  the game's own name for the item
  *   Long Blade  the weapon skill (weapons) or Leather/Chain/Plate (armor)
@@ -48,18 +49,16 @@ const WEAPON_TYPES = {
 const STORE_KEY = 'dfoUiTweaks.config.v1';
 const STYLE_ID = 'dfo-uitweaks-style';
 
-/* Material colours, two schemes, keyed by material slug. `hex` is the dot;
- * `ink` is the name colour - the same colour except where the scheme's hex is
- * too dark to read on the plaque's near-black ground. */
+/* The Daggerfall material order the game itself ranks by, low to high:
+ * Leather, Chain, Iron, Steel, Silver, Elven, Dwarven, Mithril, Adamantium,
+ * Ebony, Orcish, Daedric. The printed tier is the index + 1. */
+const MATERIAL_ORDER = ['Leather', 'Chain', ...MATERIALS];
+
+/* Colours, keyed by material slug. `hex` is the dot; `ink` is the name colour
+ * - the same colour except where the hex is too dark to read on the plaque's
+ * near-black ground. Two palettes; the tier scale above is the same for both. */
 const PALETTES = {
-  metal: {
-    leather: { hex: '#b08355' }, chain: { hex: '#aeb4bd' },
-    iron: { hex: '#b8b2a4' }, steel: { hex: '#cdd5df' }, silver: { hex: '#eaf0f6' },
-    elven: { hex: '#7fd39a' }, dwarven: { hex: '#d1904f' }, mithril: { hex: '#86c6ff' },
-    adamantium: { hex: '#a99bff' }, ebony: { hex: '#c07ad8' }, orcish: { hex: '#8fb552' },
-    daedric: { hex: '#ff6050' },
-  },
-  full: {
+  classic: {
     leather: { hex: '#8b4513' }, chain: { hex: '#c0c0c0' },
     iron: { hex: '#4a4a4a', ink: '#a3a3a3' }, steel: { hex: '#808080' },
     silver: { hex: '#d3d3d3' }, elven: { hex: '#e0e0e0' }, dwarven: { hex: '#daa520' },
@@ -67,8 +66,15 @@ const PALETTES = {
     ebony: { hex: '#1a1a1a', ink: '#909090' }, orcish: { hex: '#2e8b57' },
     daedric: { hex: '#b22222', ink: '#d95757' },
   },
+  bright: {
+    leather: { hex: '#b08355' }, chain: { hex: '#aeb4bd' },
+    iron: { hex: '#b8b2a4' }, steel: { hex: '#cdd5df' }, silver: { hex: '#eaf0f6' },
+    elven: { hex: '#7fd39a' }, dwarven: { hex: '#d1904f' }, mithril: { hex: '#86c6ff' },
+    adamantium: { hex: '#a99bff' }, ebony: { hex: '#c07ad8' }, orcish: { hex: '#8fb552' },
+    daedric: { hex: '#ff6050' },
+  },
 };
-const SCHEMES = ['metal', 'full'];
+const SCHEMES = ['classic', 'bright'];
 
 let cfg = null;
 let styleEl = null;
@@ -79,15 +85,17 @@ function load() {
   try {
     const raw = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
     if (raw && typeof raw === 'object') {
+      // pre-1.1 schemes ('metal' / 'full') both become the classic palette
+      const scheme = SCHEMES.includes(raw.scheme) ? raw.scheme : 'classic';
       return {
         labels: raw.labels !== false,
         colours: raw.colours !== false,
-        scheme: SCHEMES.includes(raw.scheme) ? raw.scheme : 'metal',
+        scheme,
         rows: clampRows(raw.rows),
       };
     }
   } catch { /* unreadable - defaults */ }
-  return { labels: true, colours: true, scheme: 'metal', rows: ROWS_DEFAULT };
+  return { labels: true, colours: true, scheme: 'classic', rows: ROWS_DEFAULT };
 }
 function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch { /* private mode */ }
@@ -99,7 +107,7 @@ const AMMO = /(?:^|\s)(pellets?|arrows?|bolts?)$/i;
 /** How many item rows the plaque shows at once (the game hard-caps at 6;
  *  the installer makes its row framer ask this instead). */
 const ROWS_MIN = 3;
-const ROWS_MAX = 30;
+const ROWS_MAX = 20;
 const ROWS_DEFAULT = 10;
 function clampRows(n) {
   const v = Math.trunc(Number(n));
@@ -138,16 +146,13 @@ function materialSlug(item) {
   const grade = materialOf(item);
   return grade == null ? null : MATERIALS[grade].toLowerCase();
 }
-/** The printed tier. "metal" is the vanilla grade (Iron 1 ... Daedric 10);
- *  "full" ranks Leather and Chain in front of it (Leather 1 ... Daedric 12). */
+/** The printed tier: the item's place in the Daggerfall material order
+ *  (Leather 1, Chain 2, Iron 3 ... Daedric 12). */
 function tierNumber(item) {
   const slug = materialSlug(item);
   if (!slug) return null;
-  if (slug === 'leather') return cfg.scheme === 'full' ? 1 : null;
-  if (slug === 'chain') return cfg.scheme === 'full' ? 2 : null;
-  const grade = MATERIALS.findIndex((m) => m.toLowerCase() === slug);
-  if (grade < 0) return null;
-  return grade + (cfg.scheme === 'full' ? 3 : 1);
+  const at = MATERIAL_ORDER.findIndex((m) => m.toLowerCase() === slug);
+  return at < 0 ? null : at + 1;
 }
 function typeOf(item) {
   if (!item) return null;
@@ -192,13 +197,19 @@ export function lootTier(item) {
 /* ------------------------------------------------------------------ style */
 function tierCss() {
   const rules = [`
-/* Room for one item per line: the plank is 300px by default and the tier
- * label plus the type overflows it, so rows wrap. Widen it and keep each row
- * on a single line; a genuinely longer name ellipsises instead of spilling.
- * (:root only beats the game sheet by specificity - it can load after this.) */
+/* One size, one line per item: the plank is 300px by default and the tier
+ * label plus the type overflows it, so rows wrapped - and a width that follows
+ * the longest row made the whole panel jump while scrolling. A list plaque now
+ * has a fixed width and each row stays on one line (a genuinely longer name
+ * ellipsises). (:root beats the game sheet, which can load after this.) */
 :root .wplaque { max-width: min(480px, 92vw); }
+:root .wplaque.has-list { width: min(480px, 92vw); max-width: none; }
 :root .wplaque-row { white-space: nowrap; }
 :root .wplaque-row > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Tall lists: the game hangs the plaque under the crosshair and it grows
+ * downward into the hotbar. The script below measures it and lifts it up by
+ * --dfo-lift so its bottom stays clear of the HUD band. */
+:root .wplaque { transform: translateX(-50%) translateY(calc(-1 * var(--dfo-lift, 0px))); }
 .dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier] > span:first-child { color: var(--dfo-ink, var(--dfo-tier)); }
 .dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier]:not([data-rarity]) > span:first-child::before {
   content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 7px;
@@ -223,7 +234,11 @@ function ensureStyle() {
 function applyColours() {
   const root = document.documentElement;
   root.classList.toggle('dfo-uitweaks-colours', !!cfg?.colours);
-  for (const scheme of SCHEMES) root.classList.toggle(`dfo-uitweaks-scheme-${scheme}`, cfg?.scheme === scheme);
+  const want = `dfo-uitweaks-scheme-${cfg?.scheme}`;
+  for (const cls of [...root.classList]) {
+    if (cls.startsWith('dfo-uitweaks-scheme-') && cls !== want) root.classList.remove(cls);
+  }
+  if (cfg?.scheme) root.classList.add(want);
 }
 
 /* ---------------------------------------------------------------- config */
@@ -243,14 +258,14 @@ function buildPane(container) {
   };
   const note = document.createElement('div');
   note.style.cssText = 'color:var(--dim,#b9b2a1);font-size:12px;margin:6px 0 2px';
-  note.textContent = 'Loot piles (and any other world plaque) print a tier by material, with the weapon skill or armor class after the name.';
+  note.textContent = 'Loot piles (and any other world plaque) print a tier by material, with the weapon skill or armor class after the name. The list length applies the next time the plaque refreshes (look away and back).';
   container.appendChild(note);
   row('Tier labels', () => cfg.labels, (v) => { cfg.labels = v; save(); });
   row('Colour by material', () => cfg.colours, (v) => { cfg.colours = v; save(); applyColours(); });
 
   const schemes = [
-    ['metal', 'Metal grade (Iron 1 - Daedric 10)'],
-    ['full', 'Full table (Leather 1 - Daedric 12)'],
+    ['classic', 'Classic (Daggerfall colours)'],
+    ['bright', 'Bright'],
   ];
   const wrap = document.createElement('div');
   wrap.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;line-height:2;margin-top:2px';
@@ -299,17 +314,56 @@ function buildPane(container) {
   container.appendChild(rowsLabel);
 }
 
+/* ------------------------------------------------------- plaque geometry */
+/* The plaque hangs below the crosshair and grows downward, so a tall list runs
+ * into the hotbar. Measure it and lift it by --dfo-lift until its bottom clears
+ * the HUD band (but never so far that its top leaves the screen). */
+let plaqueEl = null, plaqueRO = null, liftTimer = null;
+const HUD_GUARD = 120;
+
+function plaqueLift() {
+  const el = plaqueEl;
+  if (!el || !el.isConnected) return;
+  if (!el.classList.contains('on')) { el.style.removeProperty('--dfo-lift'); return; }
+  const top = el.offsetTop;          // transforms do not move the offset box
+  const height = el.offsetHeight;
+  const limit = (globalThis.innerHeight || 0) - HUD_GUARD;
+  const overflow = top + height - limit;
+  const lift = Math.max(0, Math.min(overflow, Math.max(0, top - 8)));
+  if (lift > 0) el.style.setProperty('--dfo-lift', `${Math.round(lift)}px`);
+  else el.style.removeProperty('--dfo-lift');
+}
+
+function watchPlaque() {
+  const el = document.querySelector('.wplaque');
+  if (el && el !== plaqueEl) {
+    plaqueEl = el;
+    if (typeof ResizeObserver === 'function') {
+      plaqueRO?.disconnect();
+      plaqueRO = new ResizeObserver(plaqueLift);
+      plaqueRO.observe(el);
+    }
+  }
+  plaqueLift();
+}
+
 /* -------------------------------------------------------------- lifecycle */
 export function install() {
   cfg ??= load();
   ensureStyle();
   applyColours();
   globalThis.__dfoUiTweaks = { lootLabel, lootTier, lootRows };
+  watchPlaque();
+  liftTimer ??= setInterval(watchPlaque, 400);
 }
 
 export function unmount() {
   if (globalThis.__dfoUiTweaks) delete globalThis.__dfoUiTweaks;
   document.documentElement.classList.remove('dfo-uitweaks-colours');
+  for (const scheme of SCHEMES) document.documentElement.classList.remove(`dfo-uitweaks-scheme-${scheme}`);
+  if (liftTimer) { clearInterval(liftTimer); liftTimer = null; }
+  if (plaqueRO) { plaqueRO.disconnect(); plaqueRO = null; }
+  if (plaqueEl) { plaqueEl.style.removeProperty('--dfo-lift'); plaqueEl = null; }
   if (styleEl) { styleEl.remove(); styleEl = null; }
 }
 
