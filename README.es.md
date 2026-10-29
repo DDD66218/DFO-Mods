@@ -1,6 +1,5 @@
 <p align="center">
   <a href="README.md"><img src="https://img.shields.io/badge/English-0078D4?style=for-the-badge&logo=read-the-docs&logoColor=white" alt="English"/></a>
-  <a href="README.es.md"><img src="https://img.shields.io/badge/Español-FF5722?style=for-the-badge&logo=read-the-docs&logoColor=white" alt="Español"/></a>
 </p>
 
 # Mods de DFO Online
