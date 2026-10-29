@@ -85,6 +85,8 @@ const A_ROW = 'name:Gt(e).name||`Something`,stack:';
 const B_ROW = 'name:globalThis.__dfoUiTweaks?.lootLabel?.(e,Gt(e).name)||Gt(e).name||`Something`,tier:globalThis.__dfoUiTweaks?.lootTier?.(e)??null,stack:';
 const A_TIER = 'r.rarity&&(i.dataset.rarity=r.rarity);';
 const B_TIER = 'r.rarity&&(i.dataset.rarity=r.rarity);r.tier!=null&&(i.dataset.tier=String(r.tier));';
+const A_ROWS = 'function Pf(e,t=-1,n=0,r=6){';
+const B_ROWS = 'function Pf(e,t=-1,n=0,r=globalThis.__dfoUiTweaks?.lootRows?.()??6){';
 
 /* ----------------------------------------------------------------- check */
 function checkInstalled() {
@@ -161,7 +163,24 @@ function installNow() {
       installed.add(renderer.rel);
     }
 
-    // ---- 3. the mod itself ----------------------------------------------
+    // ---- 3. the plaque's row framer: how many rows fit ------------------
+    {
+      const framer = store.findChunk({
+        test: (t) => t.includes(A_ROWS) || (t.includes(MARKER) && t.includes('lootRows')),
+      });
+      if (!framer) deferOrDie('the plaque row framer was not found and the bundled build is not readable - start the game, then retry', seed);
+      let text = framer.text;
+      if (text.includes('lootRows?.()')) log(`  row length already applied (${framer.rel})`);
+      else {
+        if (!text.includes(A_ROWS)) die('the plaque row framer anchor was not found - aborting (nothing written)');
+        text = text.replace(A_ROWS, B_ROWS);
+        log(`  patched ${framer.rel} (row framer)`);
+      }
+      store.write(framer.rel, Buffer.from(text));
+      installed.add(framer.rel);
+    }
+
+    // ---- 4. the mod itself ----------------------------------------------
     const buildId = computeBuild();
     const mod = Buffer.from(fs.readFileSync(MOD_SRC, 'utf8')
       .replace("'@BUILD@'", `'${buildId}'`), 'utf8');
@@ -169,14 +188,14 @@ function installNow() {
     installed.add(MODULE_REL);
     log(`  MOD_BUILD ${buildId}`);
 
-    // ---- 4. register with the loader -------------------------------------
+    // ---- 5. register with the loader -------------------------------------
     upsertRegistry(store, { id: ID, name: NAME, spec: SPEC });
 
-    // ---- 5. one atomic index write, then name an overlay -----------------
+    // ---- 6. one atomic index write, then name an overlay -----------------
     store.commit();
     finalizeOverlay(build);
 
-    // ---- 6. installed.json: loader + this mod's files --------------------
+    // ---- 7. installed.json: loader + this mod's files --------------------
     const marker = readMarker();
     const sameVersion = marker?.version === store.version;
     const next = {

@@ -83,10 +83,11 @@ function load() {
         labels: raw.labels !== false,
         colours: raw.colours !== false,
         scheme: SCHEMES.includes(raw.scheme) ? raw.scheme : 'metal',
+        rows: clampRows(raw.rows),
       };
     }
   } catch { /* unreadable - defaults */ }
-  return { labels: true, colours: true, scheme: 'metal' };
+  return { labels: true, colours: true, scheme: 'metal', rows: ROWS_DEFAULT };
 }
 function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch { /* private mode */ }
@@ -94,6 +95,19 @@ function save() {
 
 /* Ammo is not material-graded: pellets and arrows keep their plain name. */
 const AMMO = /(?:^|\s)(pellets?|arrows?|bolts?)$/i;
+
+/** How many item rows the plaque shows at once (the game hard-caps at 6;
+ *  the installer makes its row framer ask this instead). */
+const ROWS_MIN = 3;
+const ROWS_MAX = 30;
+const ROWS_DEFAULT = 10;
+function clampRows(n) {
+  const v = Math.trunc(Number(n));
+  return Number.isFinite(v) ? Math.min(ROWS_MAX, Math.max(ROWS_MIN, v)) : ROWS_DEFAULT;
+}
+export function lootRows() {
+  return clampRows(cfg?.rows);
+}
 
 function materialOf(item) {
   const m = Number(item?.material);
@@ -178,6 +192,13 @@ export function lootTier(item) {
 /* ------------------------------------------------------------------ style */
 function tierCss() {
   const rules = [`
+/* Room for one item per line: the plank is 300px by default and the tier
+ * label plus the type overflows it, so rows wrap. Widen it and keep each row
+ * on a single line; a genuinely longer name ellipsises instead of spilling.
+ * (:root only beats the game sheet by specificity - it can load after this.) */
+:root .wplaque { max-width: min(480px, 92vw); }
+:root .wplaque-row { white-space: nowrap; }
+:root .wplaque-row > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier] > span:first-child { color: var(--dfo-ink, var(--dfo-tier)); }
 .dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier]:not([data-rarity]) > span:first-child::before {
   content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 7px;
@@ -256,6 +277,26 @@ function buildPane(container) {
     wrap.appendChild(l);
   }
   container.appendChild(wrap);
+
+  const rowsLabel = document.createElement('label');
+  rowsLabel.style.cssText = 'display:flex;align-items:center;gap:8px;line-height:2;margin-top:2px';
+  const rowsText = document.createElement('span');
+  rowsText.style.cssText = 'color:var(--dim,#b9b2a1);font-size:12px;min-width:110px';
+  rowsText.textContent = 'List rows';
+  const rowsInput = document.createElement('input');
+  rowsInput.type = 'number';
+  rowsInput.min = String(ROWS_MIN);
+  rowsInput.max = String(ROWS_MAX);
+  rowsInput.step = '1';
+  rowsInput.value = String(clampRows(cfg.rows));
+  rowsInput.style.cssText = 'width:64px;background:var(--slate,#171b21);color:var(--bone,#efe8d6);border:1px solid var(--iron,#2b323b);padding:1px 4px';
+  rowsInput.onchange = () => {
+    cfg.rows = clampRows(rowsInput.value);
+    rowsInput.value = String(cfg.rows);
+    save();
+  };
+  rowsLabel.append(rowsText, rowsInput);
+  container.appendChild(rowsLabel);
 }
 
 /* -------------------------------------------------------------- lifecycle */
@@ -263,7 +304,7 @@ export function install() {
   cfg ??= load();
   ensureStyle();
   applyColours();
-  globalThis.__dfoUiTweaks = { lootLabel, lootTier };
+  globalThis.__dfoUiTweaks = { lootLabel, lootTier, lootRows };
 }
 
 export function unmount() {

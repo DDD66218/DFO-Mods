@@ -373,10 +373,17 @@ A row the game itself flags as magic/rare/legendary keeps the game's rarity dot,
 and the name still takes the material colour. Everything is text-first: the
 `T<n>` is there even when the colour is off.
 
+The plaque itself is widened to fit one item per line (the game caps it at
+300 px, which wraps a tier label + name + type; it now goes to 480 px, and a
+genuinely longer name ellipsises instead of spilling), and the list shows
+**10 rows** by default instead of the game's 6. **List rows** in the pane sets
+it anywhere from 3 to 30; the plaque grows downward from the crosshair, so keep
+it within the screen.
+
 **ESC → Mods → UI Tweaks** has **Tier labels** (off restores the game's plain
-names), **Colour by material**, and the **Colour scheme** choice above. The
-Metal-grade scheme uses the game's own HUD tokens for its colours (bone, steel
-blue, brass, violet, red). Settings live in
+names), **Colour by material**, the **Colour scheme** choice and **List rows**.
+The Metal-grade scheme uses the game's own HUD tokens for its colours (bone,
+steel blue, brass, violet, red). Settings live in
 `localStorage['dfoUiTweaks.config.v1']`.
 
 ### What it patches
@@ -386,8 +393,11 @@ blue, brass, violet, red). Settings live in
    tier through as `tier`.
 2. `assets/deepWaterRuntime-*.js` — the plaque renderer copies `tier` onto the
    row as `data-tier`; the mod's stylesheet keys the colours off it.
-3. `assets/dfo-uitweaks.js` — the mod itself (the label/type/material logic and
-   the stylesheet).
+3. `assets/propBodies-*.js` — the plaque's row framer (how many of the pile's
+   rows are shown at once, and which slice around the selected one) takes its
+   row count from the mod instead of the fixed 6.
+4. `assets/dfo-uitweaks.js` — the mod itself (the label/type/material logic,
+   the settings and the stylesheet).
 
 Both game patches are anchored on the exact row expression and renderer
 statement, not on chunk hashes or minified names; a missing anchor aborts
