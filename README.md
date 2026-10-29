@@ -116,11 +116,12 @@ node install.mjs --app="C:\Program Files\DFO Online"
 
 Everything is in the game's **ESC (pause) menu → Mods** (Enhanced skin):
 
-- **Reload all** at the top re-imports every registered mod.
+- **Reload all** in the footer bar re-imports every registered mod (that bar also
+  carries the credit, the repo link and the loaded builds).
 - **Reload** beside a mod's name re-imports that mod.
 - Each mod's section holds its settings. For **Skill Tracker**: panel opacity,
   row spacing, **Show/Hide panel**, reset placement, and the tracked-skill
-  checklist.
+  checklist (three columns when the pane is wide enough, two when it is not).
 
 A reload re-reads the registry: a mod whose `MOD_BUILD` changed is unmounted
 and replaced; a mod removed from the registry is unloaded; an unchanged import

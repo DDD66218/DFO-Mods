@@ -104,10 +104,15 @@ globalThis.__dfoModsList = () => [...state.active].map(([id, r]) => ({ id, name:
 
 /* -------------------------------------------------------------- credits */
 const REPO_URL = 'https://github.com/Moltennn/DFO-Mods';
+/* The pane's footer bar: credit and build on the left, the global reload on
+ * the right - the one row wide enough to carry both, so no button sits alone
+ * on a line of its own. */
 function creditLine() {
   const line = document.createElement('div');
   line.className = 'dfo-mods-credit';
-  line.style.cssText = 'margin-top:16px;padding-top:8px;border-top:1px solid var(--iron,#2b323b);color:var(--dim,#b9b2a1);font-size:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:baseline';
+  line.style.cssText = 'margin-top:16px;padding-top:8px;border-top:1px solid var(--iron,#2b323b);color:var(--dim,#b9b2a1);font-size:12px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between';
+  const left = document.createElement('div');
+  left.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;min-width:0';
   const by = document.createElement('span');
   by.textContent = 'Made by ';
   const name = document.createElement('span');
@@ -121,7 +126,7 @@ function creditLine() {
   link.rel = 'noreferrer noopener';
   link.textContent = 'DFO-Mods on GitHub';
   link.style.cssText = 'color:var(--brass,#c08a3e);text-decoration:none;border-bottom:1px solid currentColor';
-  line.append(by, name, dot, link);
+  left.append(by, name, dot, link);
 
   // The build hash lives here now (the mods used to print it in their own
   // settings rows): one clean tail for every mod, and it is what the loader
@@ -134,8 +139,9 @@ function creditLine() {
     build.title = 'MOD_BUILD: which module text is loaded; Reload re-imports when it changes';
     build.textContent = `build ${builds.map((b) => String(b).slice(0, 8)).join(', ')}`;
     build.style.cssText = 'font-variant-numeric:tabular-nums;opacity:.8';
-    line.append(bd, build);
+    left.append(bd, build);
   }
+  line.append(left, paneButton('Reload all', () => { reloadAll(true); }));
   return line;
 }
 
@@ -172,16 +178,11 @@ function paneButton(label, onclick) {
 }
 
 // ESC menu "Mods" pane: one section per mod that exposes mountPane, with a
-// reload for the whole set and one per mod.
+// reload for the whole set (its footer bar) and one per mod (its heading).
 globalThis.__dfoModsPane = function (container) {
   state.pane = container;
   container.textContent = '';
   injectPaneStyle();
-
-  const bar = document.createElement('div');
-  bar.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin:0 0 4px';
-  bar.appendChild(paneButton('Reload all', () => { reloadAll(true); }));
-  container.appendChild(bar);
 
   let any = false;
   for (const [id, rec] of state.active) {

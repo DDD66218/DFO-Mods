@@ -522,7 +522,9 @@ export function mountPane(container) {
   row('Panel placement', rst);
 
   const grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 18px;margin:10px 0 4px';
+  // three across when the pane is wide (it usually is), two when it is not;
+  // 34 skills fit in 12 rows instead of 17
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:2px 18px;margin:10px 0 4px';
   PICKABLE.forEach(([i, name]) => {
     const l = document.createElement('label');
     l.style.cssText = 'display:flex;align-items:center;gap:6px;line-height:1.7;cursor:pointer;font-size:13px';
