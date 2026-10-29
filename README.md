@@ -7,10 +7,6 @@ data, never write to a server, and never change a character or a save. The
 disk (a page tag, `boot.js`, the mod registry, a few game scripts) and re-apply
 everything after an update. Nothing is uploaded.
 
-Made by **[Moltenn](https://github.com/Moltenn)** ·
-[github.com/Moltennn/DFO-Mods](https://github.com/Moltennn/DFO-Mods) — the same
-credit and link sit at the bottom of the in-game **Mods** menu.
-
 The repository contains two pieces:
 
 - **`modloader/`** — the loader and installer toolkit. It tags the game page,
@@ -304,6 +300,11 @@ banking.
   Linux AppImage needs its mount; the Windows portable needs its unpacked
   folder), or pass `--app=`.
 - Force a full re-install by deleting `Game/.dfo-mods/installed.json`.
+- If the **Mods** pane is blank right after a game update, the game started
+  before the sync finished: the running session's in-memory index did not yet
+  name `boot.js` and the registry, so the page never loaded the loader. The
+  Mods tab can still appear because its chunk was an existing file. **Restart
+  the game once** and the pane, its settings and the credit/link load normally.
 - In game, ESC → Mods → **Reload** logs the loader's result to the DevTools
   console. With DevTools open for a live character, this prints the numbers
   behind a row:
