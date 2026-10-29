@@ -7,10 +7,11 @@
  * touches game data: it reads the item object the game already hands over.
  *
  * Label:  T3 . Iron Saber . Long Blade
- *   T<n>   material grade, Iron=1 ... Daedric=10 (item.material + 1)
- *   Iron   the item's material word
+ *   T<n>   material tier: "metal" scheme = Iron 1 ... Daedric 10 (the vanilla
+ *          grade); "full" scheme = Leather 1, Chain 2, Iron 3 ... Daedric 12
+ *   Iron   the item's material word (skipped when the game name has it)
  *   Saber  the game's own name for the item
- *   Long Blade  the weapon skill the item belongs to (weapons only)
+ *   Long Blade  the weapon skill (weapons) or Leather/Chain/Plate (armor)
  */
 'use strict';
 
@@ -47,11 +48,27 @@ const WEAPON_TYPES = {
 const STORE_KEY = 'dfoUiTweaks.config.v1';
 const STYLE_ID = 'dfo-uitweaks-style';
 
-/* One colour per material tier; read by the row CSS through --dfo-tier. */
-const COLORS = [
-  '', '#b8b2a4', '#cdd5df', '#eaf0f6', '#7fd39a', '#d1904f',
-  '#86c6ff', '#a99bff', '#c07ad8', '#8fb552', '#ff6050',
-];
+/* Material colours, two schemes, keyed by material slug. `hex` is the dot;
+ * `ink` is the name colour - the same colour except where the scheme's hex is
+ * too dark to read on the plaque's near-black ground. */
+const PALETTES = {
+  metal: {
+    leather: { hex: '#b08355' }, chain: { hex: '#aeb4bd' },
+    iron: { hex: '#b8b2a4' }, steel: { hex: '#cdd5df' }, silver: { hex: '#eaf0f6' },
+    elven: { hex: '#7fd39a' }, dwarven: { hex: '#d1904f' }, mithril: { hex: '#86c6ff' },
+    adamantium: { hex: '#a99bff' }, ebony: { hex: '#c07ad8' }, orcish: { hex: '#8fb552' },
+    daedric: { hex: '#ff6050' },
+  },
+  full: {
+    leather: { hex: '#8b4513' }, chain: { hex: '#c0c0c0' },
+    iron: { hex: '#4a4a4a', ink: '#a3a3a3' }, steel: { hex: '#808080' },
+    silver: { hex: '#d3d3d3' }, elven: { hex: '#e0e0e0' }, dwarven: { hex: '#daa520' },
+    mithril: { hex: '#191970', ink: '#7b7bd0' }, adamantium: { hex: '#2f2f2f', ink: '#969696' },
+    ebony: { hex: '#1a1a1a', ink: '#909090' }, orcish: { hex: '#2e8b57' },
+    daedric: { hex: '#b22222', ink: '#d95757' },
+  },
+};
+const SCHEMES = ['metal', 'full'];
 
 let cfg = null;
 let styleEl = null;
@@ -65,10 +82,11 @@ function load() {
       return {
         labels: raw.labels !== false,
         colours: raw.colours !== false,
+        scheme: SCHEMES.includes(raw.scheme) ? raw.scheme : 'metal',
       };
     }
   } catch { /* unreadable - defaults */ }
-  return { labels: true, colours: true };
+  return { labels: true, colours: true, scheme: 'metal' };
 }
 function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch { /* private mode */ }
@@ -86,6 +104,7 @@ function materialOf(item) {
     // (Steel Helm = 513, Daedric Helm = 521). Only plate carries a grade.
     return (m >> 8) === 2 && (m & 255) < MATERIALS.length ? (m & 255) : null;
   }
+  if (item.group !== 'Weapons') return null;
   return m < MATERIALS.length ? m : null;
 }
 /** The armor class the game itself shows as "Type": Leather, Chain, Plate. */
@@ -95,12 +114,26 @@ function armorClass(item) {
   const cls = m >> 8;
   return cls === 0 ? 'Leather' : cls === 1 ? 'Chain' : 'Plate';
 }
-function tierOf(item) {
+/** The material colour key for a row, or null when the item is not graded. */
+function materialSlug(item) {
   if (!item || AMMO.test(String(item.name ?? ''))) return null;
+  if (item.group === 'Armor') {
+    const cls = armorClass(item);
+    if (cls !== 'Plate') return cls.toLowerCase();
+  }
   const grade = materialOf(item);
-  if (grade != null) return grade + 1;
-  if (item.group === 'Armor') return armorClass(item)?.toLowerCase() ?? null;
-  return null;
+  return grade == null ? null : MATERIALS[grade].toLowerCase();
+}
+/** The printed tier. "metal" is the vanilla grade (Iron 1 ... Daedric 10);
+ *  "full" ranks Leather and Chain in front of it (Leather 1 ... Daedric 12). */
+function tierNumber(item) {
+  const slug = materialSlug(item);
+  if (!slug) return null;
+  if (slug === 'leather') return cfg.scheme === 'full' ? 1 : null;
+  if (slug === 'chain') return cfg.scheme === 'full' ? 2 : null;
+  const grade = MATERIALS.findIndex((m) => m.toLowerCase() === slug);
+  if (grade < 0) return null;
+  return grade + (cfg.scheme === 'full' ? 3 : 1);
 }
 function typeOf(item) {
   if (!item) return null;
@@ -119,14 +152,16 @@ export function lootLabel(item, gameName = null) {
   if (AMMO.test(String(item.name ?? ''))) return name; // no grade, no type
 
   const grade = materialOf(item);
-  const parts = [];
   if (grade != null) {
     const mat = MATERIALS[grade];
     // The game already prefixes the metal once it matters (Steel Saber,
     // Ebony Cuirass); iron stays bare, so only add it when missing.
     if (mat && !norm(name).startsWith(norm(mat))) name = `${mat} ${name}`;
-    parts.push(`T${grade + 1}`);
   }
+
+  const parts = [];
+  const tier = tierNumber(item);
+  if (tier) parts.push(`T${tier}`);
   parts.push(name);
 
   const type = typeOf(item);
@@ -137,24 +172,24 @@ export function lootLabel(item, gameName = null) {
 
 export function lootTier(item) {
   if (!cfg?.labels) return null;
-  return tierOf(item);
+  return materialSlug(item);
 }
 
 /* ------------------------------------------------------------------ style */
 function tierCss() {
   const rules = [`
-.dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier] > span:first-child { color: var(--dfo-tier); }
+.dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier] > span:first-child { color: var(--dfo-ink, var(--dfo-tier)); }
 .dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier]:not([data-rarity]) > span:first-child::before {
   content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 7px;
   vertical-align: 0; background: var(--dfo-tier);
   box-shadow: 0 0 0 1px #0a0b0d, 1px 2px 0 rgba(0,0,0,0.45);
 }
 .dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier].sel > span:first-child { text-shadow: 0 0 8px color-mix(in srgb, var(--dfo-tier) 45%, transparent); }`];
-  for (let tier = 1; tier < COLORS.length; tier++) {
-    rules.push(`.wplaque-row[data-tier="${tier}"] { --dfo-tier: ${COLORS[tier]}; }`);
+  for (const scheme of SCHEMES) {
+    for (const [slug, c] of Object.entries(PALETTES[scheme])) {
+      rules.push(`.dfo-uitweaks-scheme-${scheme} .wplaque-row[data-tier="${slug}"] { --dfo-tier: ${c.hex};${c.ink ? ` --dfo-ink: ${c.ink};` : ''} }`);
+    }
   }
-  rules.push('.wplaque-row[data-tier="leather"] { --dfo-tier: #b08355; }');
-  rules.push('.wplaque-row[data-tier="chain"] { --dfo-tier: #aeb4bd; }');
   return rules.join('\n');
 }
 function ensureStyle() {
@@ -165,7 +200,9 @@ function ensureStyle() {
   document.head.appendChild(styleEl);
 }
 function applyColours() {
-  document.documentElement.classList.toggle('dfo-uitweaks-colours', !!cfg?.colours);
+  const root = document.documentElement;
+  root.classList.toggle('dfo-uitweaks-colours', !!cfg?.colours);
+  for (const scheme of SCHEMES) root.classList.toggle(`dfo-uitweaks-scheme-${scheme}`, cfg?.scheme === scheme);
 }
 
 /* ---------------------------------------------------------------- config */
@@ -185,10 +222,40 @@ function buildPane(container) {
   };
   const note = document.createElement('div');
   note.style.cssText = 'color:var(--dim,#b9b2a1);font-size:12px;margin:6px 0 2px';
-  note.textContent = 'Loot piles (and any other world plaque) print T1-T10 by material grade, with the weapon type after the name.';
+  note.textContent = 'Loot piles (and any other world plaque) print a tier by material, with the weapon skill or armor class after the name.';
   container.appendChild(note);
   row('Tier labels', () => cfg.labels, (v) => { cfg.labels = v; save(); });
   row('Colour by material', () => cfg.colours, (v) => { cfg.colours = v; save(); applyColours(); });
+
+  const schemes = [
+    ['metal', 'Metal grade (Iron 1 - Daedric 10)'],
+    ['full', 'Full table (Leather 1 - Daedric 12)'],
+  ];
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;line-height:2;margin-top:2px';
+  const head = document.createElement('span');
+  head.style.cssText = 'color:var(--dim,#b9b2a1);font-size:12px;min-width:110px';
+  head.textContent = 'Colour scheme';
+  wrap.appendChild(head);
+  for (const [value, label] of schemes) {
+    const l = document.createElement('label');
+    l.style.cssText = 'display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px';
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'dfo-uitweaks-scheme';
+    radio.checked = cfg.scheme === value;
+    radio.onchange = () => {
+      if (!radio.checked) return;
+      cfg.scheme = value;
+      save();
+      applyColours();
+    };
+    const text = document.createElement('span');
+    text.textContent = label;
+    l.append(radio, text);
+    wrap.appendChild(l);
+  }
+  container.appendChild(wrap);
 }
 
 /* -------------------------------------------------------------- lifecycle */

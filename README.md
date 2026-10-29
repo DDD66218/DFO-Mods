@@ -327,11 +327,15 @@ type:
     T2 · Steel Helm · Plate
     Greaves · Chain
 
-- **T\<n\>** is the material grade, Iron = 1 … Daedric = 10 (the game's own
-  `material` enum, shifted to 1). Armor packs its class in the high byte and
-  the metal grade in the low one (`Steel Helm` = 513, `Daedric Helm` = 521), so
-  only plate armor has a grade; leather and chain show their class word
-  instead, and are coloured for it.
+- **T\<n\>** is the material tier. Two schemes (ESC → Mods → UI Tweaks):
+  **Metal grade** (default) numbers only the metals, Iron = 1 … Daedric = 10,
+  using the game's own `material` enum; **Full table** ranks the armor classes
+  in front of them — Leather 1, Chain 2, Iron 3, Steel 4, Silver 5, Elven 6,
+  Dwarven 7, Mithril 8, Adamantium 9, Ebony 10, Orcish 11, Daedric 12.
+  Armor packs its class in the high byte and the metal grade in the low one
+  (`Steel Helm` = 513, `Daedric Helm` = 521), so only plate armor has a metal
+  grade; leather and chain show their class word (and get a tier of their own
+  only under the full table).
 - The material word is added only when the game's name does not already carry
   it (the game prefixes Steel and above, not Iron; a leather cuirass already
   says Leather).
@@ -343,14 +347,36 @@ type:
 - Ammo (pellets, arrows) carries no grade and no type — it keeps its plain
   name, because its material field is not a metal.
 
-Rows are coloured by material (a dot, plus the name in the material's colour);
-leather and chain get their own colours. A row the game itself flags as
-magic/rare/legendary keeps the game's rarity dot, and the name still takes the
-material colour. Everything is text-first: the `T<n>` is there even when the
-colour is off.
+Rows are coloured by material (a dot, plus the name in the material's colour).
+The **Full table** palette uses the classic Daggerfall colours:
 
-**ESC → Mods → UI Tweaks** has two switches: **Tier labels** (off restores the
-game's plain names) and **Colour by material**. Settings live in
+| tier | material | colour | hex |
+|---|---|---|---|
+| 1 | Leather | brown | `#8B4513` |
+| 2 | Chain | silver | `#C0C0C0` |
+| 3 | Iron | dark grey | `#4A4A4A` |
+| 4 | Steel | mid grey | `#808080` |
+| 5 | Silver | pale silver | `#D3D3D3` |
+| 6 | Elven | bright silver | `#E0E0E0` |
+| 7 | Dwarven | gold | `#DAA520` |
+| 8 | Mithril | navy | `#191970` |
+| 9 | Adamantium | matte black | `#2F2F2F` |
+| 10 | Ebony | glossy black | `#1A1A1A` |
+| 11 | Orcish | green | `#2E8B57` |
+| 12 | Daedric | red | `#B22222` |
+
+The dot always uses the exact hex. The name keeps the same colour too, except
+where that would be unreadable on the plaque's near-black ground (Iron,
+Mithril, Adamantium, Ebony get a lightened ink of the same hue).
+
+A row the game itself flags as magic/rare/legendary keeps the game's rarity dot,
+and the name still takes the material colour. Everything is text-first: the
+`T<n>` is there even when the colour is off.
+
+**ESC → Mods → UI Tweaks** has **Tier labels** (off restores the game's plain
+names), **Colour by material**, and the **Colour scheme** choice above. The
+Metal-grade scheme uses the game's own HUD tokens for its colours (bone, steel
+blue, brass, violet, red). Settings live in
 `localStorage['dfoUiTweaks.config.v1']`.
 
 ### What it patches
