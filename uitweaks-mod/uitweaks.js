@@ -78,19 +78,39 @@ const SCHEMES = ['classic', 'bright'];
 
 /* Gems are their own thing: no metal grade, no type - the row is just the gem
  * in its own colour. Template indices from the game's item table (Ruby 0 ...
- * Amber 7, Pearl 77); the name is the fallback for added gems. */
+ * Amber 7); a graded gem is a block above that: 1900 + grade*8 + stone, with
+ * grades chipped/flawed/flawless/perfect (the game names them "Chipped
+ * Emerald" already). The dot carries the grade's own colour. */
 const GEMS = {
   0: ['ruby', '#c8323c'], 1: ['emerald', '#34c46a'], 2: ['sapphire', '#3f7fdf'],
   3: ['diamond', '#d9f2ff'], 4: ['jade', '#6fc48c'], 5: ['turquoise', '#35d0c5'],
   6: ['malachite', '#0f9e63'], 7: ['amber', '#ffb938'], 77: ['pearl', '#f2ead8'],
 };
+const GEM_STONES = ['ruby', 'emerald', 'sapphire', 'diamond', 'jade', 'turquoise', 'malachite', 'amber'];
+const GEM_GRADES = ['chipped', 'flawed', 'flawless', 'perfect'];
+const GEM_GRADE_BASE = 1900;
+/* the game's own gem-grade ring colours (ui/socketWells.js) */
+const GEM_GRADE_COLORS = {
+  plain: '#e9e4d9', chipped: '#7d776c', flawed: '#b3ab98',
+  flawless: '#7fe0ff', perfect: '#ffd24a',
+};
 const GEM_BY_NAME = Object.fromEntries(Object.values(GEMS).map(([slug]) => [slug, slug]));
 
 function gemSlug(item) {
   if (!item) return null;
-  const byIndex = GEMS[Number(item.templateIndex)];
+  const ti = Number(item.templateIndex);
+  const byIndex = GEMS[ti];
   if (byIndex) return byIndex[0];
-  return GEM_BY_NAME[norm(item.name)] ?? null;
+  const graded = ti - GEM_GRADE_BASE;
+  if (graded >= 0 && graded < GEM_GRADES.length * GEM_STONES.length) {
+    return `${GEM_GRADES[Math.floor(graded / GEM_STONES.length)]}-${GEM_STONES[graded % GEM_STONES.length]}`;
+  }
+  const direct = GEM_BY_NAME[norm(item.name)];
+  if (direct) return direct;
+  // "Chipped Emerald" for a build whose index table moved
+  const m = /^(chipped|flawed|flawless|perfect)\s+(.+)$/i.exec(String(item.name ?? '').trim());
+  const stone = m ? GEM_BY_NAME[norm(m[2])] : null;
+  return stone ? `${m[1].toLowerCase()}-${stone}` : null;
 }
 
 let cfg = null;
@@ -234,7 +254,7 @@ function tierCss() {
 .dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier] > span:first-child { color: var(--dfo-ink, var(--dfo-tier)); }
 .dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier]:not([data-rarity]) > span:first-child::before {
   content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 7px;
-  vertical-align: 0; background: var(--dfo-tier);
+  vertical-align: 0; background: var(--dfo-dot, var(--dfo-tier));
   box-shadow: 0 0 0 1px #0a0b0d, 1px 2px 0 rgba(0,0,0,0.45);
 }
 .dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier].sel > span:first-child { text-shadow: 0 0 8px color-mix(in srgb, var(--dfo-tier) 45%, transparent); }`];
@@ -243,9 +263,15 @@ function tierCss() {
       rules.push(`.dfo-uitweaks-scheme-${scheme} .wplaque-row[data-tier="${slug}"] { --dfo-tier: ${c.hex};${c.ink ? ` --dfo-ink: ${c.ink};` : ''} }`);
     }
   }
-  /* gems keep their own colour under every palette */
+  /* gems keep their own colour under every palette; the dot carries the grade */
   for (const [slug, hex] of Object.values(GEMS)) {
-    rules.push(`.wplaque-row[data-tier="gem-${slug}"] { --dfo-tier: ${hex}; --dfo-ink: ${hex}; }`);
+    rules.push(`.wplaque-row[data-tier="gem-${slug}"] { --dfo-tier: ${hex}; --dfo-ink: ${hex}; --dfo-dot: ${GEM_GRADE_COLORS.plain}; }`);
+  }
+  for (const grade of GEM_GRADES) {
+    for (const [at, stone] of GEM_STONES.entries()) {
+      const hex = GEMS[at][1];
+      rules.push(`.wplaque-row[data-tier="gem-${grade}-${stone}"] { --dfo-tier: ${hex}; --dfo-ink: ${hex}; --dfo-dot: ${GEM_GRADE_COLORS[grade]}; }`);
+    }
   }
   return rules.join('\n');
 }

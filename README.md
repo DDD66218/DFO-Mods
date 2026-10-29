@@ -348,6 +348,11 @@ type:
   green, Turquoise cyan, Malachite deep green, Amber gold, Pearl cream. The
   colour comes from the gem's template index (Ruby 0 … Amber 7, Pearl 77), with
   a name fallback for added gems.
+- Graded gems work too — **Chipped, Flawed, Flawless, Perfect** (indices
+  `1900 + grade*8 + stone`, and the game already puts the word in the name, so
+  `Chipped Emerald` stays). The name keeps the stone's colour; the dot carries
+  the grade in the game's own socket colours: chipped `#7d776c`, flawed
+  `#b3ab98`, plain `#e9e4d9`, flawless `#7fe0ff`, perfect `#ffd24a`.
 
 Rows are coloured by material (a dot, plus the name in the material's colour).
 Gems are coloured by their own stone. The **Classic** palette uses the
