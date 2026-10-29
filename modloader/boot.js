@@ -122,10 +122,46 @@ function creditLine() {
   link.textContent = 'DFO-Mods on GitHub';
   link.style.cssText = 'color:var(--brass,#c08a3e);text-decoration:none;border-bottom:1px solid currentColor';
   line.append(by, name, dot, link);
+
+  // The build hash lives here now (the mods used to print it in their own
+  // settings rows): one clean tail for every mod, and it is what the loader
+  // compares on reload.
+  const builds = [...new Set([...state.active.values()].map((r) => r.build).filter(Boolean))];
+  if (builds.length) {
+    const bd = document.createElement('span');
+    bd.textContent = '\u00b7';
+    const build = document.createElement('span');
+    build.title = 'MOD_BUILD: which module text is loaded; Reload re-imports when it changes';
+    build.textContent = `build ${builds.map((b) => String(b).slice(0, 8)).join(', ')}`;
+    build.style.cssText = 'font-variant-numeric:tabular-nums;opacity:.8';
+    line.append(bd, build);
+  }
   return line;
 }
 
 /* ------------------------------------------------------------- Mods pane */
+/* THE PANE OWNS THE SCROLL. The menu's .px-body is the window's own scroll
+ * well - fine for the game's panes, wrong here: it scrolls the whole page
+ * (title and rail included). This rule is scoped with :has() to the Mods
+ * content (the footer is its tail marker), so while Mods is on screen the
+ * body stops scrolling, the journal gives up its 100% min-height, and the
+ * pane's own well (.px-qdetail, the container handed to __dfoModsPane)
+ * takes the scroll. Switching tab removes the marker, so the game's own
+ * behaviour comes back with nothing to clean up. */
+let paneStyleInjected = false;
+function injectPaneStyle() {
+  if (paneStyleInjected || document.getElementById('dfo-mods-style')) return;
+  paneStyleInjected = true;
+  const st = document.createElement('style');
+  st.id = 'dfo-mods-style';
+  st.textContent = [
+    '.px-body:has(.dfo-mods-credit){overflow-y:hidden!important}',
+    '.px-body:has(.dfo-mods-credit) .px-journal{min-height:0!important;height:100%!important}',
+    '.px-body:has(.dfo-mods-credit) .px-qdetail{overflow-y:auto!important;min-height:0!important}',
+  ].join('\n');
+  document.head.appendChild(st);
+}
+
 function paneButton(label, onclick) {
   const b = document.createElement('button');
   b.type = 'button';
@@ -140,6 +176,7 @@ function paneButton(label, onclick) {
 globalThis.__dfoModsPane = function (container) {
   state.pane = container;
   container.textContent = '';
+  injectPaneStyle();
 
   const bar = document.createElement('div');
   bar.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin:0 0 4px';

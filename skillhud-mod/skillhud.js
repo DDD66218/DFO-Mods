@@ -542,10 +542,9 @@ export function mountPane(container) {
     grid.appendChild(l);
   });
   container.appendChild(grid);
-  if (e) note('Primary: ' + (primaryOf(e) || []).map(i => SKILL_NAMES[i]).join(', ') +
-    ' · Major: ' + (majorOf(e) || []).map(i => SKILL_NAMES[i]).join(', ') +
-    ' · build ' + MOD_BUILD.slice(0, 8));
-  else note('Load a character to see its skills. Alt+U unlocks HUD placement — drag "Skill tracker" like any other piece.');
+  // No character line here: the loader's footer carries the build hash, and
+  // the career skills already show as the highlighted rows under Class skills.
+  if (!e) note('Load a character to see its skills. Alt+U unlocks HUD placement — drag "Skill tracker" like any other piece.');
 }
 
 // ------------------------------------------------------- install/uninstall

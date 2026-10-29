@@ -191,7 +191,9 @@ where `boot.js` also lives). A mod module exports:
 | `mountPane(container)` | optional; the loader gives it its own section in ESC → Mods |
 
 The Mods pane renders one section per mod, headed with the registry `name`.
-Reloads use the same lifecycle: unmount, re-import, install.
+Reloads use the same lifecycle: unmount, re-import, install. The pane scrolls in
+its own well (the game's window around it does not move), and its footer carries
+the credit, the repo link and the loaded `MOD_BUILD` hashes.
 
 ### Adding a mod
 
