@@ -319,12 +319,6 @@ banking.
 
       __dfoMods.active.get('skillhud').module.debugSkill(34)
 
-## Credits
-
-Made by **Moltenn**. The project lives at
-[github.com/Moltennn/DFO-Mods](https://github.com/Moltennn/DFO-Mods); the
-in-game Mods pane carries the same credit and link.
-
 ## Notes
 
 - Backups of the release's own files live in `Game/.dfo-mods/originals.json`,
