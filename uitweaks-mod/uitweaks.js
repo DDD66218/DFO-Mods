@@ -76,6 +76,23 @@ const PALETTES = {
 };
 const SCHEMES = ['classic', 'bright'];
 
+/* Gems are their own thing: no metal grade, no type - the row is just the gem
+ * in its own colour. Template indices from the game's item table (Ruby 0 ...
+ * Amber 7, Pearl 77); the name is the fallback for added gems. */
+const GEMS = {
+  0: ['ruby', '#c8323c'], 1: ['emerald', '#34c46a'], 2: ['sapphire', '#3f7fdf'],
+  3: ['diamond', '#d9f2ff'], 4: ['jade', '#6fc48c'], 5: ['turquoise', '#35d0c5'],
+  6: ['malachite', '#0f9e63'], 7: ['amber', '#ffb938'], 77: ['pearl', '#f2ead8'],
+};
+const GEM_BY_NAME = Object.fromEntries(Object.values(GEMS).map(([slug]) => [slug, slug]));
+
+function gemSlug(item) {
+  if (!item) return null;
+  const byIndex = GEMS[Number(item.templateIndex)];
+  if (byIndex) return byIndex[0];
+  return GEM_BY_NAME[norm(item.name)] ?? null;
+}
+
 let cfg = null;
 let styleEl = null;
 
@@ -136,9 +153,13 @@ function armorClass(item) {
   const cls = m >> 8;
   return cls === 0 ? 'Leather' : cls === 1 ? 'Chain' : 'Plate';
 }
-/** The material colour key for a row, or null when the item is not graded. */
+/** The colour key for a row: a gem's own colour, or the material slug, or
+ *  null when the item is not graded. */
 function materialSlug(item) {
-  if (!item || AMMO.test(String(item.name ?? ''))) return null;
+  if (!item) return null;
+  const gem = gemSlug(item);
+  if (gem) return `gem-${gem}`;
+  if (AMMO.test(String(item.name ?? ''))) return null;
   if (item.group === 'Armor') {
     const cls = armorClass(item);
     if (cls !== 'Plate') return cls.toLowerCase();
@@ -221,6 +242,10 @@ function tierCss() {
     for (const [slug, c] of Object.entries(PALETTES[scheme])) {
       rules.push(`.dfo-uitweaks-scheme-${scheme} .wplaque-row[data-tier="${slug}"] { --dfo-tier: ${c.hex};${c.ink ? ` --dfo-ink: ${c.ink};` : ''} }`);
     }
+  }
+  /* gems keep their own colour under every palette */
+  for (const [slug, hex] of Object.values(GEMS)) {
+    rules.push(`.wplaque-row[data-tier="gem-${slug}"] { --dfo-tier: ${hex}; --dfo-ink: ${hex}; }`);
   }
   return rules.join('\n');
 }

@@ -81,8 +81,9 @@ function deferOrDie(msg, seed) {
 }
 
 /* ------------------------------------------------------------------ rows */
-const A_ROW = 'name:Gt(e).name||`Something`,stack:';
-const B_ROW = 'name:globalThis.__dfoUiTweaks?.lootLabel?.(e,Gt(e).name)||Gt(e).name||`Something`,tier:globalThis.__dfoUiTweaks?.lootTier?.(e)??null,stack:';
+/* Anchors are structural, not minified names: the item-name helper is
+ * renamed every build (`Gt` at 0.1.13266, `In` at 0.1.13299), so capture it. */
+const ROW_RX = /name:([A-Za-z0-9_$]+)\(e\)\.name\|\|`Something`,stack:/;
 const A_TIER = 'r.rarity&&(i.dataset.rarity=r.rarity);';
 const B_TIER = 'r.rarity&&(i.dataset.rarity=r.rarity);r.tier!=null&&(i.dataset.tier=String(r.tier));';
 const A_ROWS = 'function Pf(e,t=-1,n=0,r=6){';
@@ -132,14 +133,17 @@ function installNow() {
     // ---- 1. the plaque's item rows --------------------------------------
     {
       const rows = store.findChunk({
-        test: (t) => t.includes(A_ROW) || (t.includes(MARKER) && t.includes('lootTier')),
+        test: (t) => ROW_RX.test(t) || (t.includes(MARKER) && t.includes('lootTier')),
       });
       if (!rows) deferOrDie('the plaque row chunk was not found and the bundled build is not readable - start the game, then retry', seed);
       let text = rows.text;
       if (text.includes(MARKER)) log(`  tier labels already applied (${rows.rel})`);
       else {
-        if (!text.includes(A_ROW)) die('the plaque row anchor was not found - aborting (nothing written)');
-        text = text.replace(A_ROW, B_ROW);
+        const m = text.match(ROW_RX);
+        if (!m) die('the plaque row anchor was not found - aborting (nothing written)');
+        const nameFn = m[1];
+        const out = `name:globalThis.__dfoUiTweaks?.lootLabel?.(e,${nameFn}(e).name)||${nameFn}(e).name||\`Something\`,tier:globalThis.__dfoUiTweaks?.lootTier?.(e)??null,stack:`;
+        text = text.replace(ROW_RX, out);
         log(`  patched ${rows.rel} (plaque rows)`);
       }
       store.write(rows.rel, Buffer.from(text));

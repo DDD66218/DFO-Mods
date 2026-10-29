@@ -343,9 +343,15 @@ type:
   Chain or Plate.
 - Ammo (pellets, arrows) carries no grade and no type — it keeps its plain
   name, because its material field is not a metal.
+- Gems carry no grade and no type either, but each is printed in its own
+  colour: Ruby red, Emerald green, Sapphire blue, Diamond ice white, Jade soft
+  green, Turquoise cyan, Malachite deep green, Amber gold, Pearl cream. The
+  colour comes from the gem's template index (Ruby 0 … Amber 7, Pearl 77), with
+  a name fallback for added gems.
 
 Rows are coloured by material (a dot, plus the name in the material's colour).
-The **Classic** palette uses the Daggerfall colours:
+Gems are coloured by their own stone. The **Classic** palette uses the
+Daggerfall colours:
 
 | tier | material | colour | hex |
 |---|---|---|---|
