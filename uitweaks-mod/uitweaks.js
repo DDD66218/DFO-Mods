@@ -76,11 +76,11 @@ const PALETTES = {
 };
 const SCHEMES = ['classic', 'bright'];
 
-/* Gems are their own thing: no metal grade, no type - the row is just the gem
- * in its own colour. Template indices from the game's item table (Ruby 0 ...
- * Amber 7); a graded gem is a block above that: 1900 + grade*8 + stone, with
- * grades chipped/flawed/flawless/perfect (the game names them "Chipped
- * Emerald" already). The dot carries the grade's own colour. */
+/* Gems are their own thing: no metal grade, no type, no dot - the row is just
+ * the gem in its own colour, and the grade word the game already puts in the
+ * name (Chipped Emerald). Template indices from the game's item table (Ruby 0
+ * ... Amber 7); a graded gem is a block above that: 1900 + grade*8 + stone,
+ * with grades chipped/flawed/flawless/perfect. */
 const GEMS = {
   0: ['ruby', '#c8323c'], 1: ['emerald', '#34c46a'], 2: ['sapphire', '#3f7fdf'],
   3: ['diamond', '#d9f2ff'], 4: ['jade', '#6fc48c'], 5: ['turquoise', '#35d0c5'],
@@ -89,11 +89,6 @@ const GEMS = {
 const GEM_STONES = ['ruby', 'emerald', 'sapphire', 'diamond', 'jade', 'turquoise', 'malachite', 'amber'];
 const GEM_GRADES = ['chipped', 'flawed', 'flawless', 'perfect'];
 const GEM_GRADE_BASE = 1900;
-/* the game's own gem-grade ring colours (ui/socketWells.js) */
-const GEM_GRADE_COLORS = {
-  plain: '#e9e4d9', chipped: '#7d776c', flawed: '#b3ab98',
-  flawless: '#7fe0ff', perfect: '#ffd24a',
-};
 const GEM_BY_NAME = Object.fromEntries(Object.values(GEMS).map(([slug]) => [slug, slug]));
 
 function gemSlug(item) {
@@ -254,10 +249,12 @@ function tierCss() {
 .dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier] > span:first-child { color: var(--dfo-ink, var(--dfo-tier)); }
 .dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier]:not([data-rarity]) > span:first-child::before {
   content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 7px;
-  vertical-align: 0; background: var(--dfo-dot, var(--dfo-tier));
+  vertical-align: 0; background: var(--dfo-tier);
   box-shadow: 0 0 0 1px #0a0b0d, 1px 2px 0 rgba(0,0,0,0.45);
 }
-.dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier].sel > span:first-child { text-shadow: 0 0 8px color-mix(in srgb, var(--dfo-tier) 45%, transparent); }`];
+.dfo-uitweaks-colours .wplaque-list .wplaque-row[data-tier].sel > span:first-child { text-shadow: 0 0 8px color-mix(in srgb, var(--dfo-tier) 45%, transparent); }
+/* gems carry their colour in the name only - no dot in front of the stone */
+:root .wplaque-list .wplaque-row[data-tier^="gem-"] > span:first-child::before { content: none !important; }`];
   for (const scheme of SCHEMES) {
     for (const [slug, c] of Object.entries(PALETTES[scheme])) {
       rules.push(`.dfo-uitweaks-scheme-${scheme} .wplaque-row[data-tier="${slug}"] { --dfo-tier: ${c.hex};${c.ink ? ` --dfo-ink: ${c.ink};` : ''} }`);
@@ -265,12 +262,12 @@ function tierCss() {
   }
   /* gems keep their own colour under every palette; the dot carries the grade */
   for (const [slug, hex] of Object.values(GEMS)) {
-    rules.push(`.wplaque-row[data-tier="gem-${slug}"] { --dfo-tier: ${hex}; --dfo-ink: ${hex}; --dfo-dot: ${GEM_GRADE_COLORS.plain}; }`);
+    rules.push(`.wplaque-row[data-tier="gem-${slug}"] { --dfo-tier: ${hex}; --dfo-ink: ${hex}; }`);
   }
   for (const grade of GEM_GRADES) {
     for (const [at, stone] of GEM_STONES.entries()) {
       const hex = GEMS[at][1];
-      rules.push(`.wplaque-row[data-tier="gem-${grade}-${stone}"] { --dfo-tier: ${hex}; --dfo-ink: ${hex}; --dfo-dot: ${GEM_GRADE_COLORS[grade]}; }`);
+      rules.push(`.wplaque-row[data-tier="gem-${grade}-${stone}"] { --dfo-tier: ${hex}; --dfo-ink: ${hex}; }`);
     }
   }
   return rules.join('\n');

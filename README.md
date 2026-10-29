@@ -350,9 +350,8 @@ type:
   a name fallback for added gems.
 - Graded gems work too — **Chipped, Flawed, Flawless, Perfect** (indices
   `1900 + grade*8 + stone`, and the game already puts the word in the name, so
-  `Chipped Emerald` stays). The name keeps the stone's colour; the dot carries
-  the grade in the game's own socket colours: chipped `#7d776c`, flawed
-  `#b3ab98`, plain `#e9e4d9`, flawless `#7fe0ff`, perfect `#ffd24a`.
+  `Chipped Emerald` stays). The name keeps the stone's colour; gems never get a
+  dot in front (unlike metals), so the grade reads from the word itself.
 
 Rows are coloured by material (a dot, plus the name in the material's colour).
 Gems are coloured by their own stone. The **Classic** palette uses the
