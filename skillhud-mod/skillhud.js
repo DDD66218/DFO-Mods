@@ -226,8 +226,6 @@ const CSS = `
   font:12px/1.2 var(--dfo-text-font,Georgia,serif);color:var(--bone,#efe8d6);
   -webkit-font-smoothing:none;padding:0 7px 1px;user-select:none;-webkit-user-select:none;
   --lt-rowgap:${ROW_GAP_DEFAULT}px}
-#dfo-leveltracker .lt-hd{letter-spacing:.16em;text-transform:uppercase;font-size:9px;
-  color:var(--brass,#c08a3e);margin:0 0 1px}
 #dfo-leveltracker .lt-list{display:grid;grid-template-columns:max-content 1fr;column-gap:7px;
   row-gap:var(--lt-rowgap)}
 #dfo-leveltracker .lt-row{display:contents}
@@ -297,9 +295,10 @@ function rowRenderer() {
     for (const t of tracked) {
       const info = skillInfo(e, t);
       const r = rows.get(t);
-      const txt = info.held === 'cap' ? 'max'
-        : info.held === 'hold100' ? 'held'
-        : info.have + '/' + info.need;
+      // at the skill's own cap there is no progress to show: both 100 (the
+      // ceiling without Master Skills) and 200 (the cap with it) read "max",
+      // never a held/max distinction the player has to decode
+      const txt = info.held ? 'max' : info.have + '/' + info.need;
       const cls = 'lt-row' + (info.ready ? ' ready' : '') + (info.held ? ' held' : '');
       if (r.text !== txt) { r.us.textContent = txt; r.text = txt; }
       if (r.name !== info.name) { r.nm.textContent = info.name; r.name = info.name; }
@@ -315,10 +314,8 @@ function buildHud() {
   el = document.createElement('div');
   el.id = 'dfo-leveltracker';
   el.classList.add('dfo-lt');
-  const hd = document.createElement('div');
-  hd.className = 'lt-hd';
-  hd.textContent = 'Skill Tracker';
-  el.appendChild(hd);
+  // no title line: the panel is a piece of the game's HUD (the Alt+U editor
+  // names it "Skill tracker"), and its rows are self-explanatory
   listEl = document.createElement('div');
   listEl.className = 'lt-list';
   el.appendChild(listEl);

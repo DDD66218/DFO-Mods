@@ -236,8 +236,12 @@ skills you pick and shows their uses toward the next point:
 
 When enough uses are banked for the next skill check to grant the point, the
 uses column brightens (brass, with a soft glow) — the moment to rest or loiter
-and let game time pass. It reads the same character data the game's own skill
-screens show.
+and let game time pass. At a skill's own cap the uses column reads **max** and
+dims: 100 for an unmastered skill, 200 under **Master Skills**. It reads the
+same character data the game's own skill screens show.
+
+The panel carries no title line — it is a piece of the HUD, and the Alt+U
+editor names it "Skill tracker".
 
 The panel uses the game's own `:root` design tokens (`--bone`, `--dim`,
 `--brass`, `--brass-hi`, `--dfo-text-font`) with classic-skin fallbacks, so it
