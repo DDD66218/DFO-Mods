@@ -7,13 +7,15 @@ data, never write to a server, and never change a character or a save. The
 disk (a page tag, `boot.js`, the mod registry, a few game scripts) and re-apply
 everything after an update. Nothing is uploaded.
 
-The repository contains two pieces:
+The repository contains three pieces:
 
 - **`modloader/`** — the loader and installer toolkit. It tags the game page,
   serves `assets/dfo-mods/boot.js`, keeps the registry of installed mods, and
   re-applies everything after a game update.
 - **`skillhud-mod/`** — the **Skill Tracker** mod: a HUD panel that shows the
   tracked skills' uses toward the next point, configurable from the ESC menu.
+- **`uitweaks-mod/`** — the **UI Tweaks** mod: item tier labels and material
+  colours in the world plaque (loot piles), configurable from the ESC menu.
 
 ```
 README.md                 this file
@@ -30,6 +32,9 @@ modloader/
     autosync.mjs          systemd (Linux) / launchd (macOS) units
 skillhud-mod/
   skillhud.js             the mod (HUD + ESC pane)
+  install.mjs             its patches + registration
+uitweaks-mod/
+  uitweaks.js             the mod (plaque labels/colours + ESC pane)
   install.mjs             its patches + registration
 ```
 
@@ -64,6 +69,17 @@ session.
 
 Then start or restart the game.
 
+### UI Tweaks (installs the loader too)
+
+```bash
+cd uitweaks-mod
+node install.mjs
+```
+
+Same rules: it installs the shared loader if needed, patches the two game
+chunks that build the world plaque, writes `assets/dfo-uitweaks.js`, and
+registers itself. Then start or restart the game.
+
 ### Loader only
 
 ```bash
@@ -79,8 +95,10 @@ until a mod installer registers one.
 ```bash
 node modloader/install.mjs --check        # 0 healthy, 1 stale, 2 nothing patchable yet
 node skillhud-mod/install.mjs --check
+node uitweaks-mod/install.mjs --check
 
 node skillhud-mod/install.mjs --uninstall  # this mod only; loader/mods stay
+node uitweaks-mod/install.mjs --uninstall
 node modloader/install.mjs --uninstall     # refuses while mods are registered
 node modloader/install.mjs --uninstall --force
 ```
@@ -298,6 +316,48 @@ sum maps to a level 1–45 through the game's own curve. For offline characters
 `L` is the character level. Mastered skills above 100 use the 1.5×/2×/4× cost
 multipliers (100–124 / 125–149 / 150–199) and the game's `skillProgress`
 banking.
+
+## UI Tweaks
+
+Every item row in the world plaque (the crosshair panel over a loot pile, a
+corpse, a container) carries its material grade, its material word and — for
+weapons — the skill it belongs to:
+
+    T3 · Silver Saber · Long Blade
+
+- **T\<n\>** is the material grade, Iron = 1 … Daedric = 10 (the game's own
+  `material` enum, shifted to 1).
+- The material word is added only when the game's name does not already carry
+  it (the game prefixes Steel and above, not Iron).
+- The type comes from the weapon's template index (Daggerfall's canonical ids,
+  113–131, so artifacts and renamed weapons still report the right skill), with
+  a name fallback for added content.
+- Non-weapons keep their name and, when the game knows a material, their grade;
+  they get no type.
+
+Rows are coloured by material (a dot, plus the name in the material's colour);
+a row the game itself flags as magic/rare/legendary keeps the game's rarity dot,
+and the name still takes the material colour. Everything is text-first: the
+`T<n>` is there even when the colour is off.
+
+**ESC → Mods → UI Tweaks** has two switches: **Tier labels** (off restores the
+game's plain names) and **Colour by material**. Settings live in
+`localStorage['dfoUiTweaks.config.v1']`.
+
+### What it patches
+
+1. `assets/propBodies-*.js` — the plaque's item-row builder calls
+   `__dfoUiTweaks.lootLabel(item, name)` for each row's label and carries the
+   tier through as `tier`.
+2. `assets/deepWaterRuntime-*.js` — the plaque renderer copies `tier` onto the
+   row as `data-tier`; the mod's stylesheet keys the colours off it.
+3. `assets/dfo-uitweaks.js` — the mod itself (the label/type/material logic and
+   the stylesheet).
+
+Both game patches are anchored on the exact row expression and renderer
+statement, not on chunk hashes or minified names; a missing anchor aborts
+before writing. The mod reads only the item object the game already hands to
+the row builder — no game data is written.
 
 ## Troubleshooting
 

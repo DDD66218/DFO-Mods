@@ -1,0 +1,259 @@
+#!/usr/bin/env node
+/*
+ * DFO Online - UI Tweaks installer.
+ *
+ * A MOD installer: it assumes the shared loader (../modloader) and asks it to
+ * install itself first. It owns exactly its own patches:
+ *
+ *   assets/propBodies-*.js       the plaque's item rows (label + tier)
+ *   assets/deepWaterRuntime-*.js the plaque renderer (data-tier attribute)
+ *   assets/dfo-uitweaks.js       the mod
+ *   assets/dfo-mods/registry.js  one entry pointing at the mod
+ *
+ *   node install.mjs                 install/repair
+ *   node install.mjs --if-needed     check first
+ *   node install.mjs --check         0 healthy, 1 stale, 2 nothing paged yet
+ *   node install.mjs --uninstall     restore this mod's files, leave the loader
+ *   node install.mjs --install-watch / --remove-watch
+ */
+'use strict';
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { sha256 } from '../modloader/lib/game.mjs';
+import {
+  inspectTarget, prepare, openStore, finalizeOverlay, Deferred, MODLOADER_ROOT,
+} from '../modloader/lib/store.mjs';
+import { readMarker, writeMarker, modEntry, removeModEntry } from '../modloader/lib/marker.mjs';
+import { ensureLoader, loaderStatus, loaderRecord } from '../modloader/lib/loader.mjs';
+import {
+  readRegistry, upsertRegistry, removeRegistry, upsertManifest, removeManifest,
+} from '../modloader/lib/registry.mjs';
+import { installWatch, removeWatch } from '../modloader/lib/autosync.mjs';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const MOD_SRC = path.join(HERE, 'uitweaks.js');
+const MODULE_REL = 'assets/dfo-uitweaks.js';
+const ID = 'uitweaks';
+const NAME = 'UI Tweaks';
+const SPEC = '../dfo-uitweaks.js';
+const MANIFEST_DIR = path.relative(MODLOADER_ROOT, HERE).split(path.sep).join('/');
+const MARKER = '__dfoUiTweaks';
+
+const argv = process.argv.slice(2);
+const args = {
+  check: argv.includes('--check'),
+  ifNeeded: argv.includes('--if-needed'),
+  uninstall: argv.includes('--uninstall'),
+  installWatch: argv.includes('--install-watch'),
+  removeWatch: argv.includes('--remove-watch'),
+  noOverlay: argv.includes('--no-overlay'),
+  quiet: argv.includes('--quiet'),
+  force: argv.includes('--force'),
+  seed: (argv.find((a) => a.startsWith('--seed=')) || '').slice('--seed='.length) || null,
+  app: (argv.find((a) => a.startsWith('--app=')) || '').slice('--app='.length) || null,
+  help: argv.includes('--help') || argv.includes('-h'),
+};
+const log = (...a) => { if (!args.quiet) console.log(...a); };
+const die = (msg, code = 1) => { console.error(`uitweaks: ${msg}`); process.exit(code); };
+
+if (args.help) {
+  console.log(`usage: node install.mjs [--check|--if-needed|--uninstall|--install-watch|--remove-watch]
+                  [--no-overlay] [--app=<app.asar|app folder>] [--seed=<extracted dist>]
+                  [--quiet] [--force]`);
+  process.exit(0);
+}
+
+const buildOpts = () => ({ seedDir: args.seed, app: args.app, noOverlay: args.noOverlay, log });
+
+/** The same hash boot.js compares: the module text with MOD_BUILD emptied. */
+function computeBuild() {
+  const src = fs.readFileSync(MOD_SRC, 'utf8');
+  if (!src.includes("'@BUILD@'")) die('uitweaks.js: @BUILD@ placeholder missing');
+  const stripped = src.replace(/MOD_BUILD\s*=\s*[`'"][\s\S]*?[`'"]/, 'MOD_BUILD=');
+  return sha256(Buffer.from(stripped, 'utf8')).slice(0, 16);
+}
+
+function deferOrDie(msg, seed) {
+  if (!seed) throw new Deferred(msg);
+  die(msg);
+}
+
+/* ------------------------------------------------------------------ rows */
+const A_ROW = 'name:Gt(e).name||`Something`,stack:';
+const B_ROW = 'name:globalThis.__dfoUiTweaks?.lootLabel?.(e,Gt(e).name)||Gt(e).name||`Something`,tier:globalThis.__dfoUiTweaks?.lootTier?.(e)??null,stack:';
+const A_TIER = 'r.rarity&&(i.dataset.rarity=r.rarity);';
+const B_TIER = 'r.rarity&&(i.dataset.rarity=r.rarity);r.tier!=null&&(i.dataset.tier=String(r.tier));';
+
+/* ----------------------------------------------------------------- check */
+function checkInstalled() {
+  const { state, target } = inspectTarget();
+  if (!state) return { ok: false, code: 2, why: 'no state.json - launch the game once first' };
+  if (!target) {
+    return {
+      ok: false, code: 2,
+      why: state.current
+        ? `v${state.current} is current but its index does not read`
+        : `the game plays its bundled copy (v${state.seed}); no channel build to patch yet`,
+    };
+  }
+  const marker = readMarker();
+  if (!marker || marker.version !== target.version) return { ok: false, why: `not installed for v${target.version}` };
+  const store = openStore(target, null);
+  if (!loaderStatus(store, marker)) return { ok: false, why: 'the mod loader is missing or stale' };
+  const rec = modEntry(marker, ID);
+  if (!rec) return { ok: false, why: `not installed for v${target.version}` };
+  if (rec.build !== computeBuild()) return { ok: false, why: 'uitweaks.js changed since the install' };
+  for (const [rel, want] of Object.entries(rec.files || {})) {
+    const e = store.byPath.get(rel);
+    if (!e || !e.own || e.size !== want.size || e.sha256 !== want.sha256) return { ok: false, why: `${rel} is not the installed copy` };
+    try { if (fs.statSync(path.join(store.vFiles, rel)).size !== want.size) return { ok: false, why: `${rel} has the wrong size` }; }
+    catch { return { ok: false, why: `${rel} is missing` }; }
+  }
+  if (!readRegistry(store).some((m) => m.id === ID)) return { ok: false, why: 'not registered with the loader' };
+  return { ok: true, version: target.version, overlay: !!marker.overlay };
+}
+
+/* --------------------------------------------------------------- install */
+function installNow() {
+  const build = prepare(buildOpts());
+  if (build.error) { console.error(`uitweaks: ${build.error}`); return 2; }
+  const store = build.store;
+  const { state, seed, target, overlay } = build;
+  try {
+    log(`game version ${store.version}, ${overlay ? 'local overlay' : `channel build (playing v${target.live})`}`);
+
+    const loader = ensureLoader(store, { log });
+    const installed = new Set();
+
+    // ---- 1. the plaque's item rows --------------------------------------
+    {
+      const rows = store.findChunk({
+        test: (t) => t.includes(A_ROW) || (t.includes(MARKER) && t.includes('lootTier')),
+      });
+      if (!rows) deferOrDie('the plaque row chunk was not found and the bundled build is not readable - start the game, then retry', seed);
+      let text = rows.text;
+      if (text.includes(MARKER)) log(`  tier labels already applied (${rows.rel})`);
+      else {
+        if (!text.includes(A_ROW)) die('the plaque row anchor was not found - aborting (nothing written)');
+        text = text.replace(A_ROW, B_ROW);
+        log(`  patched ${rows.rel} (plaque rows)`);
+      }
+      store.write(rows.rel, Buffer.from(text));
+      installed.add(rows.rel);
+    }
+
+    // ---- 2. the plaque renderer: carry the tier to the DOM ---------------
+    {
+      const renderer = store.findChunk({
+        test: (t) => t.includes(A_TIER) || t.includes('i.dataset.tier=String(r.tier)'),
+      });
+      if (!renderer) deferOrDie('the plaque renderer chunk was not found and the bundled build is not readable - start the game, then retry', seed);
+      let text = renderer.text;
+      if (text.includes('i.dataset.tier=String(r.tier)')) log(`  data-tier already applied (${renderer.rel})`);
+      else {
+        if (!text.includes(A_TIER)) die('the plaque renderer anchor was not found - aborting (nothing written)');
+        text = text.replace(A_TIER, B_TIER);
+        log(`  patched ${renderer.rel} (plaque renderer)`);
+      }
+      store.write(renderer.rel, Buffer.from(text));
+      installed.add(renderer.rel);
+    }
+
+    // ---- 3. the mod itself ----------------------------------------------
+    const buildId = computeBuild();
+    const mod = Buffer.from(fs.readFileSync(MOD_SRC, 'utf8')
+      .replace("'@BUILD@'", `'${buildId}'`), 'utf8');
+    store.write(MODULE_REL, mod, { owned: true });
+    installed.add(MODULE_REL);
+    log(`  MOD_BUILD ${buildId}`);
+
+    // ---- 4. register with the loader -------------------------------------
+    upsertRegistry(store, { id: ID, name: NAME, spec: SPEC });
+
+    // ---- 5. one atomic index write, then name an overlay -----------------
+    store.commit();
+    finalizeOverlay(build);
+
+    // ---- 6. installed.json: loader + this mod's files --------------------
+    const marker = readMarker();
+    const sameVersion = marker?.version === store.version;
+    const next = {
+      ...(sameVersion ? marker : {}),
+      version: store.version,
+      overlay: !!overlay,
+      seed: state.seed,
+      at: new Date().toISOString(),
+      loader: loaderRecord(store, loader),
+      mods: {
+        ...(sameVersion ? (marker.mods ?? {}) : {}),
+        [ID]: { build: buildId, files: store.fileMap(installed) },
+      },
+    };
+    writeMarker(next);
+    upsertManifest({ id: ID, name: NAME, dir: MANIFEST_DIR });
+
+    log(overlay
+      ? `\nDone. The game plays v${store.version}; restart it once if it is running.`
+      : '\nDone. Reload the game page; ESC -> Mods -> UI Tweaks has the switches.');
+    return 0;
+  } catch (e) {
+    if (e instanceof Deferred) { log(e.message); return 2; }
+    throw e;
+  } finally {
+    seed?.close?.();
+  }
+}
+
+/* --------------------------------------------------------------- uninstall */
+function uninstall() {
+  const { state, target } = inspectTarget();
+  const marker = readMarker();
+  const version = target?.version || marker?.version || state?.current || null;
+  if (target) {
+    const store = openStore(target, null);
+    const rec = modEntry(marker, ID);
+    const rels = new Set([MODULE_REL]);
+    if (marker?.version === store.version && rec?.files) for (const rel of Object.keys(rec.files)) rels.add(rel);
+    for (const rel of rels) store.remove(rel, { owned: rel === MODULE_REL });
+    removeRegistry(store, ID);
+    store.commit();
+  }
+  removeManifest(ID);
+  if (marker) writeMarker(removeModEntry(marker, ID));
+  log(version ? `uninstalled from v${version} (the loader stays installed)` : 'nothing to uninstall');
+  return 0;
+}
+
+/* -------------------------------------------------------------------- main */
+try {
+  if (args.removeWatch) { removeWatch(); process.exit(0); }
+  if (args.installWatch) {
+    const c = checkInstalled();
+    if (!c.ok) { log(c.why); try { installNow(); } catch (e) { console.error(`uitweaks: ${e?.message || e}`); } }
+    installWatch();
+    process.exit(0);
+  }
+  if (args.uninstall) process.exit(uninstall());
+
+  if (args.check) {
+    const c = checkInstalled();
+    log(c.ok
+      ? `up to date: v${c.version}${c.overlay ? ' (local overlay)' : ''}`
+      : `needs install: ${c.why}`);
+    process.exit(c.ok ? 0 : (c.code || 1));
+  }
+
+  if (args.ifNeeded && !args.force) {
+    const c = checkInstalled();
+    if (c.ok) { log(`up to date: v${c.version}${c.overlay ? ' (local overlay)' : ''}`); process.exit(0); }
+    log(c.why);
+  }
+
+  const code = installNow();
+  process.exit(args.ifNeeded && code === 2 ? 0 : code);
+} catch (e) {
+  console.error(`uitweaks: ${e?.stack || e}`);
+  process.exit(1);
+}

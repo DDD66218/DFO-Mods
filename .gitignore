@@ -8,6 +8,8 @@
 !modloader/**
 !skillhud-mod/
 !skillhud-mod/**
+!uitweaks-mod/
+!uitweaks-mod/**
 
 # generated on each machine by the installers (never commit it)
 modloader/mods.json
