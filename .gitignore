@@ -1,0 +1,13 @@
+# Only the mod sources and the root README are tracked. Everything around
+# them in this workspace (the game build, the AppImage, extracted copies,
+# archives, local state) stays on the machine.
+*
+!.gitignore
+!README.md
+!modloader/
+!modloader/**
+!skillhud-mod/
+!skillhud-mod/**
+
+# generated on each machine by the installers (never commit it)
+modloader/mods.json

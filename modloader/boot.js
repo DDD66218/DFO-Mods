@@ -1,0 +1,158 @@
+/*
+ * DFO Online - the mod loader (stable bootstrap, shared by every mod).
+ *
+ * Served as assets/dfo-mods/boot.js and tagged from play/index.html. It reads
+ * assets/dfo-mods/registry.js (written by the mod installers), imports each
+ * listed module cache-busted, and owns the lifecycle:
+ *
+ *   MOD_BUILD   the installer injects a hash of the module text; a different
+ *               build on reload means "unmount the old instance, install this"
+ *   install()   mount (called by the loader, never at import time)
+ *   unmount()   remove everything install() put in the page
+ *   mountPane(container)   optional: a section in the ESC menu's Mods pane
+ *
+ * There are no hotkeys. ESC -> Mods has "Reload all" at the top and a
+ * "Reload" button per mod; the same two doors exist as
+ * globalThis.__dfoReloadMods() and globalThis.__dfoModsReloadOne(id).
+ */
+'use strict';
+
+// The registry is a module, so specs resolve the same way boot.js's do:
+// relative to assets/dfo-mods/ (e.g. "../dfo-skillhud.js").
+const REGISTRY = './registry.js';
+
+if (!globalThis.__dfoMods) globalThis.__dfoMods = { active: new Map(), mods: [], pane: null };
+const state = globalThis.__dfoMods;
+
+/** null when the registry itself could not be read (keep what is running). */
+async function readRegistry() {
+  try {
+    const mod = await import(`${REGISTRY}?t=${Date.now()}`);
+    const list = Array.isArray(mod.MODS) ? mod.MODS : [];
+    return list.filter((e) => e && typeof e.id === 'string' && typeof e.spec === 'string' && e.spec);
+  } catch (e) {
+    console.error('[dfo-mods] registry failed', e);
+    return null;
+  }
+}
+
+async function loadOne(entry, { force = false } = {}) {
+  const id = entry.id;
+  const name = entry.name || id;
+  const cur = state.active.get(id);
+  let module;
+  try {
+    module = await import(`${entry.spec}?t=${Date.now()}`);
+  } catch (e) {
+    console.error(`[dfo-mods] ${id}: import failed`, e);
+    return `FAILED import  ${id}: ${e.message}`;
+  }
+  const build = String(module.MOD_BUILD ?? '');
+  if (cur && !force && cur.build === build && cur.spec === entry.spec) return `unchanged  ${id}`;
+
+  if (cur) { try { cur.module.unmount?.(); } catch (e) { console.warn(`[dfo-mods] ${id}: unmount`, e); } }
+  state.active.set(id, { module, build, name, spec: entry.spec });
+  try {
+    module.install?.();
+  } catch (e) {
+    console.error(`[dfo-mods] ${id}: install`, e);
+    state.active.delete(id); // a failed mount must not look installed
+    return `FAILED install  ${id}: ${e.message}`;
+  }
+  return `${cur ? 'reloaded' : 'loaded   '}  ${id}${build ? `  (build ${build})` : ''}`;
+}
+
+/** Rebuild the Mods pane if it is the one on screen. */
+function refreshPane() {
+  if (state.pane && state.pane.isConnected) globalThis.__dfoModsPane(state.pane);
+}
+
+async function reloadAll(force = false) {
+  const list = await readRegistry();
+  if (list === null) return 'registry unavailable - keeping the running mods';
+  state.mods = list;
+  const lines = [];
+  const seen = new Set();
+  for (const entry of list) {
+    seen.add(entry.id);
+    lines.push(await loadOne(entry, { force }));
+  }
+  for (const [id, rec] of [...state.active]) {
+    if (seen.has(id)) continue;
+    try { rec.module.unmount?.(); } catch (e) { console.warn(`[dfo-mods] ${id}: unmount`, e); }
+    state.active.delete(id);
+    lines.push(`unloaded   ${id}`);
+  }
+  console.log(`[dfo-mods]\n  ${lines.join('\n  ') || '(no mods registered)'}`);
+  refreshPane();
+  return lines.join('\n');
+}
+
+async function reloadOne(id) {
+  const entry = state.mods.find((m) => m.id === id);
+  if (!entry) { console.warn(`[dfo-mods] ${id} is not registered`); return `not registered: ${id}`; }
+  const line = await loadOne(entry, { force: true });
+  console.log(`[dfo-mods] ${line}`);
+  refreshPane();
+  return line;
+}
+
+globalThis.__dfoReloadMods = reloadAll;
+globalThis.__dfoModsReloadOne = reloadOne;
+/** What is loaded right now (DevTools). */
+globalThis.__dfoModsList = () => [...state.active].map(([id, r]) => ({ id, name: r.name, build: r.build, spec: r.spec }));
+
+/* ------------------------------------------------------------- Mods pane */
+function paneButton(label, onclick) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = label;
+  b.style.cssText = 'cursor:pointer;background:var(--slate,#171b21);color:var(--bone,#efe8d6);border:1px solid var(--iron,#2b323b);padding:2px 10px;font:inherit';
+  b.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); onclick(); });
+  return b;
+}
+
+// ESC menu "Mods" pane: one section per mod that exposes mountPane, with a
+// reload for the whole set and one per mod.
+globalThis.__dfoModsPane = function (container) {
+  state.pane = container;
+  container.textContent = '';
+
+  const bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin:0 0 4px';
+  bar.appendChild(paneButton('Reload all', () => { reloadAll(true); }));
+  container.appendChild(bar);
+
+  let any = false;
+  for (const [id, rec] of state.active) {
+    if (typeof rec.module?.mountPane !== 'function') continue;
+    any = true;
+    const section = document.createElement('section');
+    section.className = 'dfo-mod-pane';
+    section.dataset.mod = id;
+    const heading = document.createElement('div');
+    heading.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:12px;margin:10px 0 4px';
+    const title = document.createElement('div');
+    title.textContent = rec.name || id;
+    title.style.cssText = 'letter-spacing:.18em;text-transform:uppercase;font-size:12px;color:var(--brass,#c08a3e)';
+    heading.append(title, paneButton('Reload', () => { reloadOne(id); }));
+    const body = document.createElement('div');
+    body.className = 'dfo-mod-pane-body';
+    section.append(heading, body);
+    container.appendChild(section);
+    try { rec.module.mountPane(body); } catch (e) {
+      console.error(`[dfo-mods] ${id}: mountPane`, e);
+      const err = document.createElement('div');
+      err.textContent = `${rec.name || id}: pane error (see console)`;
+      body.appendChild(err);
+    }
+  }
+  if (!any) {
+    const n = document.createElement('div');
+    n.style.cssText = 'color:#9a9486;font-size:12px';
+    n.textContent = 'No installed mod exposes a config pane.';
+    container.appendChild(n);
+  }
+};
+
+reloadAll();
