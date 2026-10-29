@@ -224,7 +224,7 @@ const CSS = `
   background-color:rgba(12,14,18,.84);
   box-shadow:0 0 0 1px #050608, 2px 2px 0 1px rgba(0,0,0,.35);
   font:12px/1.2 var(--dfo-text-font,Georgia,serif);color:var(--bone,#efe8d6);
-  -webkit-font-smoothing:none;padding:0 7px 1px;user-select:none;-webkit-user-select:none;
+  -webkit-font-smoothing:none;padding:5px 7px 4px;user-select:none;-webkit-user-select:none;
   --lt-rowgap:${ROW_GAP_DEFAULT}px}
 #dfo-leveltracker .lt-list{display:grid;grid-template-columns:max-content 1fr;column-gap:7px;
   row-gap:var(--lt-rowgap)}
