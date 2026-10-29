@@ -226,6 +226,14 @@ const CSS = `
   font:12px/1.2 var(--dfo-text-font,Georgia,serif);color:var(--bone,#efe8d6);
   -webkit-font-smoothing:none;padding:5px 7px 4px;user-select:none;-webkit-user-select:none;
   --lt-rowgap:${ROW_GAP_DEFAULT}px}
+/* UI colour (Enhanced Plus theme): the game repaints its own HUD pieces by
+ * :root[data-plus-theme=...] and redefines --ink/--slate/--iron on :root; the
+ * chips (.hud-temp, .hud-qstag) then take the theme's chip ground. Mirror it
+ * with the one token the theme guarantees, keeping the piece translucent over
+ * the world. Slate is the base theme and writes no sheet - it keeps the
+ * observed default ground above. */
+:root[data-plus-theme]:not([data-plus-theme="slate"]) #dfo-leveltracker{
+  background-color:color-mix(in srgb, var(--slate,#171b21) 90%, transparent)}
 #dfo-leveltracker .lt-list{display:grid;grid-template-columns:max-content 1fr;column-gap:7px;
   row-gap:var(--lt-rowgap)}
 #dfo-leveltracker .lt-row{display:contents}
