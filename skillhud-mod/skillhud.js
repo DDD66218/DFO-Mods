@@ -455,7 +455,13 @@ function dropPlacement() {
 }
 function place() {
   if (!el) return;
-  if (cfg.hidden !== (el.style.display === 'none')) el.style.display = cfg.hidden ? 'none' : '';
+  // Only while the game's own HUD root exists. The title screen and the
+  // main menu never build it; the world does, and the HUD is their parent.
+  // This keeps the panel out of menus while leaving it visible in-game
+  // (including under the ESC pause menu) before the player entity is set.
+  const show = !!document.querySelector('.hud') && !cfg.hidden;
+  const display = show ? '' : 'none';
+  if (el.style.display !== display) el.style.display = display;
   if (!el.hasAttribute('data-hm-off')) el.style.opacity = String(cfg.opacity);
 }
 let rowGapCache = null;

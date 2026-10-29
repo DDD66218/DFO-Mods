@@ -102,6 +102,29 @@ globalThis.__dfoModsReloadOne = reloadOne;
 /** What is loaded right now (DevTools). */
 globalThis.__dfoModsList = () => [...state.active].map(([id, r]) => ({ id, name: r.name, build: r.build, spec: r.spec }));
 
+/* -------------------------------------------------------------- credits */
+const REPO_URL = 'https://github.com/Moltennn/DFO-Mods';
+function creditLine() {
+  const line = document.createElement('div');
+  line.className = 'dfo-mods-credit';
+  line.style.cssText = 'margin-top:16px;padding-top:8px;border-top:1px solid var(--iron,#2b323b);color:var(--dim,#b9b2a1);font-size:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:baseline';
+  const by = document.createElement('span');
+  by.textContent = 'Made by ';
+  const name = document.createElement('span');
+  name.textContent = 'Moltenn';
+  name.style.cssText = 'color:var(--brass,#c08a3e)';
+  const dot = document.createElement('span');
+  dot.textContent = '\u00b7';
+  const link = document.createElement('a');
+  link.href = REPO_URL;
+  link.target = '_blank';
+  link.rel = 'noreferrer noopener';
+  link.textContent = 'DFO-Mods on GitHub';
+  link.style.cssText = 'color:var(--brass,#c08a3e);text-decoration:none;border-bottom:1px solid currentColor';
+  line.append(by, name, dot, link);
+  return line;
+}
+
 /* ------------------------------------------------------------- Mods pane */
 function paneButton(label, onclick) {
   const b = document.createElement('button');
@@ -153,6 +176,7 @@ globalThis.__dfoModsPane = function (container) {
     n.textContent = 'No installed mod exposes a config pane.';
     container.appendChild(n);
   }
+  container.appendChild(creditLine());
 };
 
 reloadAll();

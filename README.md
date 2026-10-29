@@ -1,8 +1,15 @@
 # DFO Online Mods
 
 Client-side mods for **DFO Online** (the desktop build), plus the shared loader
-they run on. Everything here is UI-only: it reads the game's own data, never
-writes to a server, and never changes a character or a save.
+they run on. The **mods** are UI-only at runtime: they read the game's own
+data, never write to a server, and never change a character or a save. The
+**loaders and installers are not UI-only** — they patch the local game build on
+disk (a page tag, `boot.js`, the mod registry, a few game scripts) and re-apply
+everything after an update. Nothing is uploaded.
+
+Made by **[Moltenn](https://github.com/Moltenn)** ·
+[github.com/Moltennn/DFO-Mods](https://github.com/Moltennn/DFO-Mods) — the same
+credit and link sit at the bottom of the in-game **Mods** menu.
 
 The repository contains two pieces:
 
@@ -74,7 +81,7 @@ until a mod installer registers one.
 ### Checks and removal
 
 ```bash
-node modloader/install.mjs --check        # 0 healthy, 1 stale, 2 nothing pageable yet
+node modloader/install.mjs --check        # 0 healthy, 1 stale, 2 nothing patchable yet
 node skillhud-mod/install.mjs --check
 
 node skillhud-mod/install.mjs --uninstall  # this mod only; loader/mods stay
@@ -250,6 +257,10 @@ follows whatever **Overhauls → UI Overhaul / Plus theme** is active.
 - **Show/hide**: the pane's **Show/Hide panel** button is the only door. There
   are no mod hotkeys; the game's keyboard focus and pointer input are
   untouched.
+- **Only in-world**: the panel is mounted only while the game's own HUD root
+  exists, so the title screen and main menu never show it. The main menu's
+  **Mods** entry still opens and shows the settings; the tracker appears when
+  the world (and its HUD) loads.
 
 ### What it patches
 
@@ -298,6 +309,12 @@ banking.
   behind a row:
 
       __dfoMods.active.get('skillhud').module.debugSkill(34)
+
+## Credits
+
+Made by **Moltenn**. The project lives at
+[github.com/Moltennn/DFO-Mods](https://github.com/Moltennn/DFO-Mods); the
+in-game Mods pane carries the same credit and link.
 
 ## Notes
 
