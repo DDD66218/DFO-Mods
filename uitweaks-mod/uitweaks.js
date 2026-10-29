@@ -74,16 +74,38 @@ function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch { /* private mode */ }
 }
 
+/* Ammo is not material-graded: pellets and arrows keep their plain name. */
+const AMMO = /(?:^|\s)(pellets?|arrows?|bolts?)$/i;
+
 function materialOf(item) {
   const m = Number(item?.material);
-  return Number.isInteger(m) && m >= 0 && m < MATERIALS.length ? m : null;
+  if (!Number.isInteger(m) || m < 0) return null;
+  if (item.group === 'Armor') {
+    // armor packs its class in the high byte and the metal grade in the low
+    // one: 0 / 1<<8 = Leather / Chain, 2<<8 | grade = Plate in that metal
+    // (Steel Helm = 513, Daedric Helm = 521). Only plate carries a grade.
+    return (m >> 8) === 2 && (m & 255) < MATERIALS.length ? (m & 255) : null;
+  }
+  return m < MATERIALS.length ? m : null;
+}
+/** The armor class the game itself shows as "Type": Leather, Chain, Plate. */
+function armorClass(item) {
+  const m = Number(item?.material);
+  if (!Number.isInteger(m) || m < 0) return null;
+  const cls = m >> 8;
+  return cls === 0 ? 'Leather' : cls === 1 ? 'Chain' : 'Plate';
 }
 function tierOf(item) {
-  const m = materialOf(item);
-  return m == null ? null : m + 1;
+  if (!item || AMMO.test(String(item.name ?? ''))) return null;
+  const grade = materialOf(item);
+  if (grade != null) return grade + 1;
+  if (item.group === 'Armor') return armorClass(item)?.toLowerCase() ?? null;
+  return null;
 }
 function typeOf(item) {
-  if (!item || item.group !== 'Weapons') return null;
+  if (!item) return null;
+  if (item.group === 'Armor') return armorClass(item);
+  if (item.group !== 'Weapons') return null;
   const byIndex = WEAPON_BY_INDEX[Number(item.templateIndex)];
   if (byIndex) return byIndex;
   return WEAPON_TYPES[norm(item.name)] ?? null;
@@ -93,20 +115,23 @@ function typeOf(item) {
  *  game's own computed name (so quality words and epithets survive). */
 export function lootLabel(item, gameName = null) {
   if (!cfg?.labels || !item || typeof item !== 'object') return null;
-  const mat = materialOf(item);
-  const matName = mat == null ? null : MATERIALS[mat];
-  const tier = mat == null ? null : mat + 1;
   let name = String(gameName || item.name || 'Item').trim() || 'Item';
+  if (AMMO.test(String(item.name ?? ''))) return name; // no grade, no type
 
-  // The game already prefixes the material once it matters (Steel Saber,
-  // Ebony Cuirass); iron and the like stay bare, so only add it when missing.
-  if (matName && !norm(name).startsWith(norm(matName))) name = `${matName} ${name}`;
+  const grade = materialOf(item);
+  const parts = [];
+  if (grade != null) {
+    const mat = MATERIALS[grade];
+    // The game already prefixes the metal once it matters (Steel Saber,
+    // Ebony Cuirass); iron stays bare, so only add it when missing.
+    if (mat && !norm(name).startsWith(norm(mat))) name = `${mat} ${name}`;
+    parts.push(`T${grade + 1}`);
+  }
+  parts.push(name);
 
   const type = typeOf(item);
-  const parts = [];
-  if (tier) parts.push(`T${tier}`);
-  parts.push(name);
-  if (type) parts.push(type);
+  // Leather Cuirass / Chain Greaves already carry their class; don't repeat it.
+  if (type && !norm(name).includes(norm(type))) parts.push(type);
   return parts.join(' \u00b7 ');
 }
 
@@ -128,6 +153,8 @@ function tierCss() {
   for (let tier = 1; tier < COLORS.length; tier++) {
     rules.push(`.wplaque-row[data-tier="${tier}"] { --dfo-tier: ${COLORS[tier]}; }`);
   }
+  rules.push('.wplaque-row[data-tier="leather"] { --dfo-tier: #b08355; }');
+  rules.push('.wplaque-row[data-tier="chain"] { --dfo-tier: #aeb4bd; }');
   return rules.join('\n');
 }
 function ensureStyle() {

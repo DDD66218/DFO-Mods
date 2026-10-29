@@ -320,25 +320,34 @@ banking.
 ## UI Tweaks
 
 Every item row in the world plaque (the crosshair panel over a loot pile, a
-corpse, a container) carries its material grade, its material word and — for
-weapons — the skill it belongs to:
+corpse, a container) carries its material grade, its material word and its
+type:
 
     T3 · Silver Saber · Long Blade
+    T2 · Steel Helm · Plate
+    Greaves · Chain
 
 - **T\<n\>** is the material grade, Iron = 1 … Daedric = 10 (the game's own
-  `material` enum, shifted to 1).
+  `material` enum, shifted to 1). Armor packs its class in the high byte and
+  the metal grade in the low one (`Steel Helm` = 513, `Daedric Helm` = 521), so
+  only plate armor has a grade; leather and chain show their class word
+  instead, and are coloured for it.
 - The material word is added only when the game's name does not already carry
-  it (the game prefixes Steel and above, not Iron).
-- The type comes from the weapon's template index (Daggerfall's canonical ids,
-  113–131, so artifacts and renamed weapons still report the right skill), with
-  a name fallback for added content.
-- Non-weapons keep their name and, when the game knows a material, their grade;
-  they get no type.
+  it (the game prefixes Steel and above, not Iron; a leather cuirass already
+  says Leather).
+- Weapons show the skill they belong to, from the template index
+  (Daggerfall's canonical ids, 113–131, so artifacts and renamed weapons still
+  report the right skill), with a name fallback for added content.
+- Armor shows the class the game's own item sheet calls **Type**: Leather,
+  Chain or Plate.
+- Ammo (pellets, arrows) carries no grade and no type — it keeps its plain
+  name, because its material field is not a metal.
 
 Rows are coloured by material (a dot, plus the name in the material's colour);
-a row the game itself flags as magic/rare/legendary keeps the game's rarity dot,
-and the name still takes the material colour. Everything is text-first: the
-`T<n>` is there even when the colour is off.
+leather and chain get their own colours. A row the game itself flags as
+magic/rare/legendary keeps the game's rarity dot, and the name still takes the
+material colour. Everything is text-first: the `T<n>` is there even when the
+colour is off.
 
 **ESC → Mods → UI Tweaks** has two switches: **Tier labels** (off restores the
 game's plain names) and **Colour by material**. Settings live in
