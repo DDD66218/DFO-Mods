@@ -253,10 +253,11 @@ follows whatever **Overhauls → UI Overhaul / Plus theme** is active.
 - **Show/hide**: the pane's **Show/Hide panel** button is the only door. There
   are no mod hotkeys; the game's keyboard focus and pointer input are
   untouched.
-- **Only in-world**: the panel is mounted only while the game's own HUD root
-  exists, so the title screen and main menu never show it. The main menu's
-  **Mods** entry still opens and shows the settings; the tracker appears when
-  the world (and its HUD) loads.
+- **Only in-world**: the panel is hidden until the game hands the tracker a
+  live character, so the title screen and main menu never show it. It works
+  with either HUD skin (Enhanced parents it under `.hud`; classic leaves it on
+  the page body). The main menu's **Mods** entry still opens and shows the
+  settings; the tracker appears when a character loads.
 
 ### What it patches
 
